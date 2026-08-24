@@ -59,6 +59,7 @@ func JudgeK8sFacts(hm *HostMetric) []Anomaly {
 	}
 	out = append(out, judgeK8sSvcBackends(hm)...)
 	out = append(out, judgeK8sPVCs(hm)...)
+	out = append(out, judgeK8sNodeSched(hm)...)
 	return out
 }
 
@@ -249,6 +250,75 @@ func judgeK8sPVCs(hm *HostMetric) []Anomaly {
 		}
 		out = append(out, Anomaly{Host: hm.Host, Metric: "k8s_pvcs", Key: ns + "/" + name, Severity: SevWarn,
 			Desc: desc})
+	}
+	return out
+}
+
+// k8sTaint 污点条目（jsonpath 输出 JSON 数组元素）。
+type k8sTaint struct {
+	Key    string `json:"key"`
+	Value  string `json:"value"`
+	Effect string `json:"effect"`
+}
+
+// parseK8sTaints 解析节点污点 jsonpath 值：JSON 数组形态
+// [{"effect":"NoSchedule","key":"k","value":"v"}]；空/<nil> → 空表。
+// 异常格式返回 ok=false（调用方降级跳过该行）。
+func parseK8sTaints(s string) ([]k8sTaint, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "<nil>" {
+		return nil, true
+	}
+	var ts []k8sTaint
+	if err := json.Unmarshal([]byte(s), &ts); err != nil {
+		return nil, false
+	}
+	return ts, true
+}
+
+// judgeK8sNodeSched 调度面判定（演练 R4 快检进化）：节点不可调度
+// （unschedulable=true，SchedulingDisabled）→ 线索；节点存在
+// NoSchedule/NoExecute 污点 → 线索（无容忍 Pod 无法调度——调度域
+// 故障根因方向，Pending Pod 的确定性归类）。污点本身可能是有意配置
+// （专用节点），产 pending 线索由 DeepDive 裁决是否预期。数据驱动：
+// 无数据段跳过。
+func judgeK8sNodeSched(hm *HostMetric) []Anomaly {
+	var out []Anomaly
+	// unschedulable 状态：kubectl jsonpath 输出 "node true"/"node "。
+	if raw := hm.rawCov("k8s_node_unsched"); raw != "" {
+		for _, line := range strings.Split(raw, "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 || fields[1] != "true" {
+				continue
+			}
+			out = append(out, Anomaly{Host: hm.Host, Metric: "k8s_node_unsched", Key: fields[0], Severity: SevWarn,
+				Desc: fmt.Sprintf("k8s 节点 %s 不可调度（unschedulable=true，SchedulingDisabled）——调度域故障根因方向（新 Pod 将 Pending）", fields[0])})
+		}
+	}
+	// 污点清单：jsonpath 输出 "node <nil>"、"node"（空）或
+	// "node [{"effect":..,"key":..,"value":..}]"（JSON 数组形态）。
+	if raw := hm.rawCov("k8s_node_taints"); raw != "" {
+		for _, line := range strings.Split(raw, "\n") {
+			node, rest, ok := strings.Cut(line, " ")
+			if !ok || node == "" {
+				continue
+			}
+			taints, ok := parseK8sTaints(rest)
+			if !ok {
+				continue // 异常格式：该行降级跳过（不臆断）
+			}
+			for _, t := range taints {
+				if t.Effect != "NoSchedule" && t.Effect != "NoExecute" {
+					continue
+				}
+				taint := t.Key
+				if t.Value != "" {
+					taint += "=" + t.Value
+				}
+				out = append(out, Anomaly{Host: hm.Host, Metric: "k8s_node_taints", Key: node + "/" + taint, Severity: SevWarn,
+					Desc: fmt.Sprintf("k8s 节点 %s 存在污点 %s:%s——无对应容忍的 Pod 无法调度（调度域故障根因方向；有意配置由 DeepDive 裁决）", node, taint, t.Effect)})
+			}
+		}
 	}
 	return out
 }

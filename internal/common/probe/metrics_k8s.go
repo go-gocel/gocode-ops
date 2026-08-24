@@ -268,5 +268,16 @@ func k8sSecurityFacts() []Metric {
 			Fragment: func(*Env) string {
 				return k8sProbe("kubectl get storageclass --no-headers 2>/dev/null", 20)
 			}},
+		// 调度面（演练 R4 快检进化）：节点调度状态与污点——判定层按
+		// "不可调度/NoSchedule 污点"归类调度域故障根因方向（Pending
+		// Pod 的 FailedScheduling 事件面由 k8s_events 覆盖）。
+		{ID: "k8s_node_unsched", Name: "节点调度状态（unschedulable）",
+			Fragment: func(*Env) string {
+				return BoundedProbe(`sh -c "command -v kubectl >/dev/null 2>&1 && kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name} {.spec.unschedulable}{\"\\n\"}{end}' 2>/dev/null || true"`, 20)
+			}},
+		{ID: "k8s_node_taints", Name: "节点污点清单",
+			Fragment: func(*Env) string {
+				return BoundedProbe(`sh -c "command -v kubectl >/dev/null 2>&1 && kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name} {.spec.taints}{\"\\n\"}{end}' 2>/dev/null || true"`, 20)
+			}},
 	}
 }

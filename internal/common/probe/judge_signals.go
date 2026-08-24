@@ -64,6 +64,9 @@ var signalByMetric = map[string]string{
 	// 存储面（R3 快检进化）：PVC 未绑定 + SC 存在性归类，复检一并重采。
 	"k8s_pvcs": "k8s_pvc_abnormal",
 	"k8s_scs":  "k8s_pvc_abnormal",
+	// 调度面（R4 快检进化）：节点不可调度/污点，复检一并重采。
+	"k8s_node_unsched": "k8s_node_unschedulable",
+	"k8s_node_taints":  "k8s_node_tainted",
 	// LVM 面（metrics_lvm.go）：逻辑卷使用率。
 	"lvm_lv_full": "lvm_lv_full",
 	// 等保加固面（metrics_hardening.go）：密码策略（login.defs/

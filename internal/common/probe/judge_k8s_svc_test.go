@@ -229,3 +229,63 @@ func TestJudgeK8sPVCs(t *testing.T) {
 		t.Fatalf("无数据应跳过，got %+v", out)
 	}
 }
+
+// TestJudgeK8sNodeSched 调度面判定：节点不可调度/NoSchedule 污点产
+// 线索；干净节点/无数据段跳过。
+func TestJudgeK8sNodeSched(t *testing.T) {
+	hm := &HostMetric{
+		Host: "web-01",
+		Raw: map[string]string{
+			"k8s_node_unsched": "node-1 \nnode-2 true\n",
+			"k8s_node_taints":  "node-1 \nnode-2 [{\"effect\":\"NoSchedule\",\"key\":\"dedicated\",\"value\":\"test\"}]\n",
+		},
+	}
+	out := JudgeK8sFacts(hm)
+	var unsched, tainted bool
+	for _, a := range out {
+		if a.Metric == "k8s_node_unsched" && a.Key == "node-2" {
+			unsched = true
+		}
+		if a.Metric == "k8s_node_taints" && strings.HasSuffix(a.Key, "dedicated=test") {
+			tainted = true
+			if !strings.Contains(a.Desc, "NoSchedule") {
+				t.Errorf("污点线索应含 effect: %s", a.Desc)
+			}
+		}
+	}
+	if !unsched {
+		t.Errorf("不可调度节点应产线索: %+v", out)
+	}
+	if !tainted {
+		t.Errorf("NoSchedule 污点应产线索: %+v", out)
+	}
+	// 干净节点：不产线。
+	clean := &HostMetric{Host: "web-01", Raw: map[string]string{
+		"k8s_node_unsched": "node-1 \n",
+		"k8s_node_taints":  "node-1 <nil>\n",
+	}}
+	if out := JudgeK8sFacts(clean); len(out) != 0 {
+		t.Fatalf("干净节点不应产线，got %+v", out)
+	}
+	// 无数据段跳过。
+	if out := JudgeK8sFacts(&HostMetric{Host: "h"}); len(out) != 0 {
+		t.Fatalf("无数据应跳过，got %+v", out)
+	}
+}
+
+// TestParseK8sTaints 污点 JSON 形态解析：空/<nil>/正常/异常。
+func TestParseK8sTaints(t *testing.T) {
+	if ts, ok := parseK8sTaints(""); !ok || len(ts) != 0 {
+		t.Errorf("空应解析为空表: %v %v", ts, ok)
+	}
+	if ts, ok := parseK8sTaints("<nil>"); !ok || len(ts) != 0 {
+		t.Errorf("<nil> 应解析为空表: %v %v", ts, ok)
+	}
+	ts, ok := parseK8sTaints(`[{"effect":"NoSchedule","key":"dedicated","value":"test"}]`)
+	if !ok || len(ts) != 1 || ts[0].Effect != "NoSchedule" || ts[0].Key != "dedicated" || ts[0].Value != "test" {
+		t.Errorf("JSON 污点解析错误: %v %v", ts, ok)
+	}
+	if _, ok := parseK8sTaints("garbage"); ok {
+		t.Error("异常格式应 ok=false")
+	}
+}
