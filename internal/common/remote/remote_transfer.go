@@ -40,6 +40,9 @@ type progressReader struct {
 	sink       func(done, total int64)
 }
 
+// Read reads data from the wrapped reader, reporting progress at throttled
+// intervals and returning an error when the context is cancelled.
+// Read 从包装的读取器读取数据，按节流间隔回调进度；ctx 取消时返回错误。
 func (p *progressReader) Read(b []byte) (int, error) {
 	if p.ctx != nil {
 		select {
@@ -59,6 +62,8 @@ func (p *progressReader) Read(b []byte) (int, error) {
 	return n, err
 }
 
+// Upload uploads a local file or directory to multiple hosts serially,
+// streaming progress in real time.
 // Upload 上传本地文件/目录到多台主机（逐台串行，进度实时回传）。
 func (e *sshExecutor) Upload(ctx context.Context, aliases []string, localPath, remotePath string, mode os.FileMode) (string, error) {
 	inv, err := e.loadInventory()
@@ -338,6 +343,8 @@ func (e *sshExecutor) uploadDirRec(ctx context.Context, sc *sftp.Client, host, l
 	return files, bytes, nil
 }
 
+// Download downloads a remote file or directory to the local machine,
+// streaming progress in real time.
 // Download 下载远端文件/目录到本地（逐台串行，进度实时回传）。
 // 多台主机时保存到 <localDir>/<host>/<name>，避免同名覆盖。
 func (e *sshExecutor) Download(ctx context.Context, aliases []string, remotePath, localDir string) (string, error) {

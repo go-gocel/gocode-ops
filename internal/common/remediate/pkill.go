@@ -110,6 +110,8 @@ func splitTopLevel(cmd string) []string {
 	return segs
 }
 
+// PkillAutoFix mechanically rewrites commands that carry pkill/pgrep -f
+// self-kill risk into safely executable command segments.
 // PkillAutoFix 把含 pkill/pgrep -f 自杀风险的命令机械改写为可安全执行
 // 的命令段（处置自由度与执行安全兼得——引擎已确认问题存在，拒绝只会
 // 把已确认的处置卡死：评测实测 9090/8088 后门因 pkill 拒绝 3 轮达限

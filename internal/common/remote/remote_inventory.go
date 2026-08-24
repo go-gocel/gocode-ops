@@ -14,6 +14,7 @@ func inventoryNames(inv *Inventory) string {
 	return strings.Join(names, ", ")
 }
 
+// HostView is the display view of the host inventory.
 // HostView 是主机清单的展示视图（供界面渲染；密码等敏感字段不导出）。
 type HostView struct {
 	Name    string
@@ -22,6 +23,7 @@ type HostView struct {
 	Auth    string // "密钥" / "密码"
 }
 
+// ListInventory reads the inventory and returns display views for the UI.
 // ListInventory 读取清单并返回展示视图（界面使用，不进入模型上下文）。
 func ListInventory(path string) ([]HostView, error) {
 	e := newSSHExecutor(RemoteConfig{InventoryPath: path})

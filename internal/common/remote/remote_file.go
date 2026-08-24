@@ -12,6 +12,9 @@ import (
 	"github.com/pkg/sftp"
 )
 
+// FileInfo returns the info of a remote path (stat for a single file or
+// ls-style listing for a directory).
+// FileInfo 返回远端路径信息（stat 单文件或 ls 目录内容）。
 func (e *sshExecutor) FileInfo(ctx context.Context, host, remotePath string, list bool) (string, error) {
 	inv, err := e.loadInventory()
 	if err != nil {
@@ -58,6 +61,8 @@ func (e *sshExecutor) FileInfo(ctx context.Context, host, remotePath string, lis
 	return fmt.Sprintf("%s %s: %s %s %s", info.Mode().String(), kind, remotePath, humanBytes(info.Size()), info.ModTime().Format("2006-01-02 15:04")), nil
 }
 
+// ListHosts returns a model-readable host inventory (aliases, auth methods,
+// and recent probe status when available).
 // ListHosts 返回模型可读的主机清单：别名 + 认证方式 + 最近探测状态
 // （如有）。地址与用户不在模型上下文出现（保持凭证零泄露承诺）；
 // 界面侧用 ListInventory 展示。
@@ -90,6 +95,7 @@ func (e *sshExecutor) ListHosts() (string, error) {
 	return strings.TrimRight(sb.String(), "\n"), nil
 }
 
+// Aliases returns the list of inventory aliases.
 // Aliases 返回清单别名列表（P0 修复：单主机清单下 remote_terminal 的
 // host 参数可由引擎回填）。
 func (e *sshExecutor) Aliases() ([]string, error) {
@@ -106,6 +112,8 @@ func (e *sshExecutor) Aliases() ([]string, error) {
 	return out, nil
 }
 
+// Probe concurrently probes host connectivity and returns a map of alias
+// to status description.
 // Probe 并发探测主机连通性（并发上限 8，dial 超时取调用方 timeout，
 // 缺省 10s），返回 别名 → 状态描述。结果缓存进执行器（ListHosts 附
 // 最近探测状态，只存脱敏状态——错误细节含地址，模型侧只拿结论）。

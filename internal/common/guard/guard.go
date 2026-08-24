@@ -13,23 +13,29 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// Policy decides how risky commands are handled.
 // Policy 决定高危命令的处置方式。
 type Policy string
 
 const (
+	// PolicyAsk asks the operator for confirmation before every risky command (default, safest).
 	// PolicyAsk 每次高危命令执行前都向操作员确认（默认，最安全）。
 	PolicyAsk Policy = "ask"
+	// PolicyAllow automatically allows risky commands (explicit operator choice; hard-banned commands are still blocked).
 	// PolicyAllow 自动放行高危命令（操作员显式选择；硬性禁止命令仍拦截）。
 	PolicyAllow Policy = "allow"
+	// PolicyDeny rejects all risky commands (read-only inspections are unaffected).
 	// PolicyDeny 一律拒绝高危命令（只读巡检不受影响）。
 	PolicyDeny Policy = "deny"
+	// PolicyAuto is the unattended automatic policy: read-only commands pass naturally, risky commands are auto-reviewed, and hard bans still apply.
 	// PolicyAuto 无人值守自动策略：只读命令天然放行；高危命令自动审查
 	// （自影响审查通过即放行并留痕审计，硬性禁止照旧）。供全自动运维引擎
 	// 使用——全自动即自动判断风险，不再依赖人工确认。
 	PolicyAuto Policy = "auto"
 )
 
-// riskyRule 描述一类高危命令。
+// RiskyCommandGuard guards risky commands: it reviews command risk, applies the configured policy, and intercepts credential-path access.
+// RiskyCommandGuard 高危命令守卫：命令风险审查 + 策略裁决（ask/allow/deny/auto）+ 凭证路径拦截。
 type RiskyCommandGuard struct {
 	Operator model.Operator
 	Policy   Policy
@@ -72,6 +78,7 @@ type askWaiter struct {
 	err     error
 }
 
+// NewRiskyCommandGuard creates a guard; when operator is nil, the ask policy degrades to deny.
 // NewRiskyCommandGuard 创建守卫。operator 为 nil 时 ask 策略退化为 deny。
 func NewRiskyCommandGuard(operator model.Operator, policy Policy) *RiskyCommandGuard {
 	if policy == "" {
@@ -86,6 +93,7 @@ func NewRiskyCommandGuard(operator model.Operator, policy Policy) *RiskyCommandG
 	}
 }
 
+// AllowAllSession enables session-wide approval so subsequent risky routine commands are no longer confirmed one by one.
 // AllowAllSession 会话级放行：后续高危常规变更命令不再逐条确认
 // （操作员在某次确认中选择 a 时由 decide 置位；硬性禁止命令不受影响）。
 func (g *RiskyCommandGuard) AllowAllSession() {
@@ -94,6 +102,7 @@ func (g *RiskyCommandGuard) AllowAllSession() {
 	g.mu.Unlock()
 }
 
+// AllowAuto registers exact command texts as auto-allowed under PolicyAuto.
 // AllowAuto 在 PolicyAuto 下把命令原文登记为自动放行（精确匹配）。
 // 只应由引擎处置通道调用——处置命令经三件套契约校验后登记、参数受限；
 // 模型发起的命令永远无法进入白名单（工具调用不经过本方法）。
@@ -105,6 +114,7 @@ func (g *RiskyCommandGuard) AllowAuto(cmds ...string) {
 	}
 }
 
+// CheckAuto pre-checks whether a command would be allowed under PolicyAuto; nil means it may run.
 // CheckAuto 预检一条命令在 PolicyAuto 下是否会被放行：
 // 返回 nil 表示可执行。供处置通道在执行前校验处置命令
 // （命令风险审查与策略拒绝立即暴露，不等到执行时才发现）。
@@ -126,6 +136,7 @@ func (g *RiskyCommandGuard) CheckAuto(cmd string, hosts []string) error {
 	return fmt.Errorf("ops 安全守卫: 当前策略拒绝—— %s：%s", matchRiskyRule(cmd).name, cmd)
 }
 
+// Register attaches the guard's tool-call hook to the kernel registrar.
 // Register 挂接 BeforeToolCall 钩子。
 func (g *RiskyCommandGuard) Register(rt kernel.HookRegistrar) {
 	rt.OnToolCall(g.onToolCall)
@@ -256,6 +267,7 @@ func (g *RiskyCommandGuard) checkFileTool(ctx context.Context, info *kernel.Tool
 	return ctx, info, nil
 }
 
+// CheckTransferPath validates that a transfer target path does not touch credential material.
 // checkTransferPath 校验传输目标路径不触碰凭证材料。
 func (g *RiskyCommandGuard) CheckTransferPath(remotePath, verb string) error {
 	if remotePath == "" {
@@ -302,6 +314,7 @@ func (g *RiskyCommandGuard) resolveHosts(aliases []string) []string {
 	return sortHosts(aliases)
 }
 
+// RiskVerdict is the unified outcome of a command risk review; hitting any risk face rejects the command.
 // RiskVerdict 命令风险审查结论（统一出口）。命中任何风险面即拒绝
 // （hard），策略不可调节——只给建议，不执行。
 type RiskVerdict struct {
@@ -501,6 +514,7 @@ func (g *RiskyCommandGuard) decideAfterRisk(ctx context.Context, cmd string, rul
 	return fmt.Errorf("ops 安全守卫: 操作员拒绝执行—— %s", cmd)
 }
 
+// CheckCommand checks and decides whether a command may run (unified entry for remote_* tools and external assembly layers).
 // CheckCommand 检查并裁决一条命令是否可执行（统一入口：命令风险审查
 // 无条件先行，再按规则命中走策略裁决；未命中规则的只读命令放行）。
 // remote_* 工具族与外部装配层的统一入口。
@@ -508,6 +522,7 @@ func (g *RiskyCommandGuard) CheckCommand(ctx context.Context, cmd string, hosts 
 	return g.decideCommand(ctx, cmd, hosts, tool)
 }
 
+// CheckReadOnly validates a command for read-only channels (used by verify and similar): it must not hit any risky rule.
 // CheckReadOnly 只读通道校验（verify 等只读执行通道用）：命令不得命中
 // 任何高危规则——只读通道只允许"天然只读"的命令。命令风险审查先行
 // （硬性禁止/自影响任何策略一致拒绝）；命中常规规则即拒绝（verify

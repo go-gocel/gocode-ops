@@ -34,6 +34,8 @@ const credentialRules = `## 凭证保密（硬性拦截，最高优先级）
   ssh/scp/sftp/sshpass 自建连接或把密码写进命令；守卫硬性拦截。
 - 执行前先确认目标主机可用；不确定远端路径时先查看再动手。`
 
+// ChannelSafetyRules is the prompt text for own-channel safety, covering
+// command risk review and the self-impact surface.
 // ChannelSafetyRules 自身通道安全：命令风险审查 · 自身影响面的提示面。
 // 守卫机械强制，命中即拒绝并转人工建议——任何形态一致。通道面分级
 // （迭代 5）：只拦“切断通道/破坏工具链”的动作；修复/清理类动作（清空
@@ -71,6 +73,8 @@ const guardRules = `## 安全守卫协作
   单独命令重试，取证命令不要提及凭证路径（R14 教训：tar 能力位取证
   因 echo 注释含 /root/.ssh 被整条拦截，拆开重试即通过）。`
 
+// SharedOpsRules returns the cross-product shared rule text, referenced
+// by engine, assistant and respond alike.
 // SharedOpsRules 跨产品共享规则（engine/assistant/respond 引用同一文本）。
 func SharedOpsRules() string {
 	return strings.Join([]string{
@@ -97,6 +101,8 @@ const stanceRules = `## 立场与证据纪律（守卫机械强制，命中即�
    控制节点）；环境性不可修复项直接转人工工单（respond actions 置空），
    不做尝试性安装/启用——把"未安装"恶化为"装了但 failed"是状态恶化。`
 
+// MethodologyRules returns the shared troubleshooting methodology used by
+// both the interactive ops assistant and the autonomous ops engine.
 // MethodologyRules 共享排障方法论（单一来源：交互式运维助手与 全自动运维引擎
 // 共用——"处理问题的逻辑与哲学"的提示面）。方法论不包含任何故障知识
 // 条目，只描述如何追查：痕迹追踪/分层排除/假设验证/覆盖意识/根因闭环/

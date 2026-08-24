@@ -30,6 +30,8 @@ type aliasLister interface {
 	Aliases() ([]string, error)
 }
 
+// RemoteTerminalTool returns the remote_terminal tool that runs a command
+// on a single remote host.
 // RemoteTerminalTool 返回 remote_terminal 工具：在**单台**远端主机执行
 // 命令，与本地 terminal 逻辑一致（差异只在目标与显示）。凭证由本机清单
 // 安全保管，模型不可见；命令仍受高危守卫管控。
@@ -75,6 +77,8 @@ type remoteBatchParams struct {
 	TimeoutS int `json:"timeout_s,omitempty" description:"单台超时秒数（默认 30，上限 600）"`
 }
 
+// RemoteBatchTool returns the remote_batch tool that runs a command on
+// multiple remote hosts.
 // RemoteBatchTool 返回 remote_batch 工具：在**多台**远端主机批量执行
 // 命令（并发上限 8，输出按主机分段）。高危命令确认提示列出真实主机名。
 func RemoteBatchTool(ex RemoteExecutor, guard *RiskyCommandGuard) kernel.Tool {
@@ -108,6 +112,8 @@ type remoteUploadParams struct {
 	Mode string `json:"mode,omitempty" description:"目标文件权限（八进制），默认 0644"`
 }
 
+// RemoteUploadTool returns the remote_upload tool that uploads a local file
+// or directory to remote hosts.
 // RemoteUploadTool 返回 remote_upload 工具：把本地文件/目录上传到远端
 // （SFTP，逐台串行，进度实时回传）。部署、传包、分发配置的通道。
 func RemoteUploadTool(ex RemoteExecutor, guard *RiskyCommandGuard) kernel.Tool {
@@ -143,6 +149,8 @@ type remoteDownloadParams struct {
 	LocalDir string `json:"local_dir,omitempty" description:"本地保存目录（默认工作目录）"`
 }
 
+// RemoteDownloadTool returns the remote_download tool that downloads a
+// remote file or directory to the local machine.
 // RemoteDownloadTool 返回 remote_download 工具：把远端文件/目录下载到
 // 本地（SFTP，进度实时回传）。日志、报告、配置备份的通道。
 func RemoteDownloadTool(ex RemoteExecutor, guard *RiskyCommandGuard) kernel.Tool {
@@ -177,6 +185,8 @@ type remoteCopyParams struct {
 	TargetPath string `json:"target_path" description:"目标路径（文件→文件路径，目录→目录路径）"`
 }
 
+// RemoteCopyTool returns the remote_copy tool that copies files or
+// directories between remote hosts.
 // RemoteCopyTool 返回 remote_copy 工具：远端主机间复制文件/目录（集群间
 // 同步、配置分发的通道）。scp/rsync 被守卫硬拦截（凭证零泄露），本工具
 // 内部 SFTP 双程中转，凭证不出本机。
@@ -220,6 +230,8 @@ func RemoteCopyTool(ex RemoteExecutor, guard *RiskyCommandGuard) kernel.Tool {
 // remote_list：列出清单主机（模型可读视图）。
 type remoteListParams struct{}
 
+// RemoteListTool returns the remote_list tool that lists the remote host
+// inventory.
 // RemoteListTool 返回 remote_list 工具：列出远程主机清单（别名 + 认证
 // 方式；地址/用户/凭证不在模型上下文出现）。
 func RemoteListTool(ex RemoteExecutor, guard *RiskyCommandGuard) kernel.Tool {
@@ -243,6 +255,8 @@ type remoteFileParams struct {
 	List bool `json:"list,omitempty" description:"true=列出目录内容；false=查看单个路径信息（默认）"`
 }
 
+// RemoteFileTool returns the remote_file tool that inspects remote file
+// info or directory contents.
 // RemoteFileTool 返回 remote_file 工具：查看远端文件信息或目录内容
 // （部署前检查路径、确认产物、核对版本等）。
 func RemoteFileTool(ex RemoteExecutor, guard *RiskyCommandGuard) kernel.Tool {

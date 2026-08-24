@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// InventoryRefresh is the full baseline refresh interval for S2 on-board inventory.
 // S2 上板基线刷新节奏（design-v2.md §二，单一来源——引擎同步与报告
 // 标注共用）：
 //   - InventoryRefresh 完整基线刷新周期；
@@ -14,6 +15,7 @@ const (
 	InventoryRetry   = 2 * time.Hour
 )
 
+// FactInventory is the S2 on-board baseline of enumerated facts.
 // FactInventory S2 上板基线（design-v2.md §二：枚举事实"上板一次全量建
 // 基线，例行只做漂移检测"）。
 //
@@ -28,6 +30,7 @@ type FactInventory struct {
 	Entries map[string]string `json:"entries"`           // 条目 → 摘要（如路径 → 大小/类型）
 }
 
+// GetInventory returns the on-board baseline for a host probe, or nil if absent.
 // GetInventory 返回主机某探针的上板基线（nil=未上板/无记录）。
 func (w *Workspace) GetInventory(host, probeID string) *FactInventory {
 	w.mu.Lock()
@@ -45,6 +48,7 @@ func (w *Workspace) GetInventory(host, probeID string) *FactInventory {
 	return &cp
 }
 
+// PutInventory stores the on-board baseline for a host probe, including partial retry records.
 // PutInventory 写入主机某探针的上板基线（含"未上板"的 partial 重试记录）。
 func (w *Workspace) PutInventory(host, probeID string, inv *FactInventory) error {
 	w.mu.Lock()
@@ -63,6 +67,7 @@ func (w *Workspace) PutInventory(host, probeID string, inv *FactInventory) error
 	return w.save("fact_inventory.json", w.Inventory)
 }
 
+// InventorySnapshot returns a deep-copied snapshot of all on-board baselines.
 // InventorySnapshot 返回上板基线快照（报告覆盖声明用；加锁深拷贝）。
 func (w *Workspace) InventorySnapshot() map[string]map[string]*FactInventory {
 	w.mu.Lock()

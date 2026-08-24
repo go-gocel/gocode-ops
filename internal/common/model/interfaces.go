@@ -6,6 +6,7 @@ import (
 	"context"
 )
 
+// Operator is the interactive terminal interface for the human operator.
 // Operator 是操作员交互终端接口。CLI 用 stdin/stdout 实现；桌面应用可
 // 换成对话框实现。nil 表示非交互环境（高危命令一律阻止，ask_operator
 // 返回错误）。
@@ -14,6 +15,7 @@ type Operator interface {
 	Ask(prompt string, options []string) (string, error)
 }
 
+// L0Snapshooter is the snapshot provider of the l0_snapshot tool.
 // L0Snapshooter 是 l0_snapshot 工具的快检提供者。*Engine 实现本接口；
 // 接口化便于消费方（TUI/非终端形态）注入 fake 与测试。
 type L0Snapshooter interface {
@@ -22,6 +24,7 @@ type L0Snapshooter interface {
 	SnapshotL0(ctx context.Context) (string, error)
 }
 
+// ConnFact is the channel fact of the engine connecting to a host (from the inventory; credentials stay out of the model context).
 // ConnFact 引擎连接一台主机的通道事实（来自主机清单，凭据不入模型上下文）。
 type ConnFact struct {
 	// Host 主机别名。
@@ -34,6 +37,7 @@ type ConnFact struct {
 	Port string
 }
 
+// ImpactRisk is the result of the self-impact review (non-nil means a risk was hit).
 // ImpactRisk 自身影响面审查结果（非 nil 表示命中风险）。
 type ImpactRisk struct {
 	// Category 风险类别：channel-auth/channel-service/channel-firewall/

@@ -11,6 +11,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// Env describes the target runtime environment detected on the host.
 // Env 描述目标运行环境。探测结果决定检查清单实例化哪套命令集——
 // 容器内没有 systemd，df/free 看到的是隔离视图，检查项需要按环境裁剪。
 type Env struct {
@@ -22,6 +23,7 @@ type Env struct {
 	NProc       int  // 可见 CPU 核数（容器内为配额）
 }
 
+// DetectEnv probes the local machine environment.
 // DetectEnv 探测本机环境。
 //
 // 豁免说明（gocode/AGENTS.md 确定性验证豁免同类）：探测命令是固定只读
@@ -43,6 +45,7 @@ func DetectEnv(ctx context.Context) *Env {
 	return env
 }
 
+// DetectEnvInfo builds a minimal environment profile from deterministic probes (fallback when the Explore model phase fails).
 // DetectEnvInfo 由确定性探测生成最小环境画像（Explore 模型阶段失败时
 // 兜底用；与 DetectEnv 同级确定性验证豁免——固定只读命令，带超时）。
 // 字段缺省如实反映，来源在 Notes 标注，不假装模型级完整性。

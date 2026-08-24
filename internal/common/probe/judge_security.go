@@ -58,6 +58,9 @@ func attributable(proc string, units []string) bool {
 	return false
 }
 
+// JudgeSecurityFacts performs data-driven security-fact attribution and
+// threshold judgment, skipping when the corresponding data segment is
+// absent.
 // JudgeSecurityFacts 安全事实归属/阈值判定（数据驱动：无对应数据段即跳过）：
 //   - 监听端口无法归属到运行中服务单元 → 疑点（任何端口被同一机制覆盖）；
 //   - uid=0 非 root 用户 → 疑点（特权后门账号特征）；

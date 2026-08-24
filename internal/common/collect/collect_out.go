@@ -16,6 +16,7 @@ func firstWords(s string, n int) string {
 	return strings.Join(fields[:n], " ") + "…"
 }
 
+// StripSectionHeader removes the leading "## host" section header from a remote Exec result.
 // StripSectionHeader 去掉远程 Exec 返回的 "## host\n" 分段头（单台调用）。
 func StripSectionHeader(out string) string {
 	if strings.HasPrefix(out, "## ") {
@@ -71,6 +72,7 @@ func splitFragmentsEx(out string) (map[string]string, map[string]bool) {
 	return frags, incomplete
 }
 
+// TruncateStr keeps the first n bytes of s and appends an ellipsis when s is longer.
 // TruncateStr 保留前 n 个字节、超长加省略号。截断不切断多字节 UTF-8
 // 字符（此前按裸字节截断会把中文/emoji 切半，产生非法 UTF-8——日志
 // 文件因此被工具判定为二进制，grep 默认拒绝）。

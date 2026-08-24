@@ -23,6 +23,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// DesiredState is the desired state declared in .gocode/desired.json.
 // DesiredState 期望状态（.gocode/desired.json）。
 type DesiredState struct {
 	Hosts         map[string]HostDesire   `json:"hosts,omitempty"`
@@ -31,12 +32,15 @@ type DesiredState struct {
 	PeerGroups    [][]string              `json:"peer_groups,omitempty"`
 }
 
+// HostDesire is the desired state for a single host.
 // HostDesire 单台主机的期望。
 type HostDesire struct {
 	Role   string     `json:"role,omitempty"`
 	Expect ExpectSpec `json:"expect,omitempty"`
 }
 
+// ExpectSpec is an expectation spec: a must list (things that must be
+// present) plus a forbidden list (things that must not be present).
 // ExpectSpec 期望规格：must 清单（该在的必须在）+ 禁项清单（不该在的必须不在）。
 type ExpectSpec struct {
 	Services        []string `json:"services,omitempty"`          // 必须运行的服务单元
@@ -48,6 +52,8 @@ type ExpectSpec struct {
 	NoWorldWritable []string `json:"no_world_writable,omitempty"` // 禁止世界可写的路径前缀
 }
 
+// RoleTemplate is a role template, the reusable unit of expectation
+// specs.
 // RoleTemplate 角色模板（期望规格的复用单元）。
 type RoleTemplate struct {
 	Services        []string `json:"services,omitempty"`
@@ -59,6 +65,7 @@ type RoleTemplate struct {
 	NoWorldWritable []string `json:"no_world_writable,omitempty"`
 }
 
+// PolicyDesire is the global policy.
 // PolicyDesire 全局策略。
 type PolicyDesire struct {
 	NoLdPreload bool `json:"no_ld_preload,omitempty"` // 禁 /etc/ld.so.preload
@@ -67,11 +74,14 @@ type PolicyDesire struct {
 
 // ── 加载/保存 ──────────────────────────────────────────────────────────
 
+// DesiredPath returns the desired-state file path.
 // DesiredPath 期望状态文件路径。
 func DesiredPath(workDir string) string {
 	return filepath.Join(model.ConfigDir(workDir), "desired.json")
 }
 
+// LoadDesired loads the desired state, returning (nil, nil) when the
+// file does not exist (deviation computation then skips it).
 // LoadDesired 加载期望状态；文件不存在返回 (nil, nil)（偏差计算跳过）。
 func LoadDesired(workDir string) (*DesiredState, error) {
 	p := DesiredPath(workDir)
@@ -89,6 +99,7 @@ func LoadDesired(workDir string) (*DesiredState, error) {
 	return &d, nil
 }
 
+// SaveDesired saves the desired state with an atomic write.
 // SaveDesired 保存期望状态（原子写）。
 func SaveDesired(workDir string, d *DesiredState) error {
 	if d == nil {
@@ -104,6 +115,8 @@ func SaveDesired(workDir string, d *DesiredState) error {
 	return fsutil.WriteFileAtomic(DesiredPath(workDir), append(data, '\n'), 0o644)
 }
 
+// InitDesired initializes the desired-state file: it writes the template
+// when missing and leaves an existing file untouched.
 // InitDesired 初始化期望状态文件（不存在时写模板；已存在不动）。
 // 返回是否新建。
 func InitDesired(workDir string) (bool, error) {
@@ -133,6 +146,8 @@ func InitDesired(workDir string) (bool, error) {
 
 // ── 冷启动自动基线：首次观测即期望 ───────────────────────────────────
 
+// AutoDesiredFromSnapshot generates the desired state from the
+// first-round snapshot (role inference plus observed-as-desired).
 // AutoDesiredFromSnapshot 用首轮快照生成期望状态（角色推断 + 观测即期望）。
 // 生成的期望是保守的（服务/端口/用户白名单 = 当前观测），用户可按角色
 // 模板细化。hosts 映射按快照主机名；role 统一 basic（模板可改）。
@@ -158,6 +173,8 @@ func AutoDesiredFromSnapshot(snap *Snapshot) *DesiredState {
 
 // ── 偏差计算（纯函数） ────────────────────────────────────────────────
 
+// Deviation is an expected-versus-observed deviation, the raw material
+// of a structured finding.
 // Deviation 期望-观测偏差（结构化 finding 的原料）。
 type Deviation struct {
 	Host     string   `json:"host"`
@@ -168,9 +185,14 @@ type Deviation struct {
 	Evidence string   `json:"evidence,omitempty"`
 }
 
+// Signal returns the deviation signal name, kept separate from the L0
+// signal table (deviations are expectation-side conclusions with
+// independent dedup keys).
 // Signal 偏差信号名（与 L0 信号词表隔离——偏差是期望侧结论，去重键独立）。
 func (d Deviation) Signal() string { return "deviation_" + d.Kind }
 
+// ToFinding converts the deviation into a structured finding
+// (Source=deviation, Key=object).
 // ToFinding 转结构化 finding（Source=deviation，Key=对象）。
 func (d Deviation) ToFinding() *Finding {
 	f := NewFinding(d.Host, "config", d.Signal(),
@@ -181,6 +203,8 @@ func (d Deviation) ToFinding() *Finding {
 	return f
 }
 
+// ComputeDeviations computes all deviations deterministically as a pure
+// function over the desired state and the snapshot.
 // ComputeDeviations 计算全部偏差（确定性纯函数）：
 //   - 每台主机：角色模板 + 显式期望合并 → must/禁项检查；
 //   - 全局策略：LD_PRELOAD / root SSH；

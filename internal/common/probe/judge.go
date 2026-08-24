@@ -6,6 +6,7 @@ import (
 	"sort"
 )
 
+// Anomaly is a single anomaly judgment result.
 // Anomaly 一条异常判定结果。
 type Anomaly struct {
 	Host     string   `json:"host"`
@@ -18,6 +19,9 @@ type Anomaly struct {
 	Desc     string   `json:"desc"`
 }
 
+// ObjectKey returns k unless it is an aggregate-type key
+// ("count"/"avail_pct"/"swap_pct") that must not participate in
+// deduplication or rechecking.
 // ObjectKey 判定 Anomaly.Key 是否为可区分对象键（挂载点/单元名/配置行等）：
 // 聚合型指标（svc_failed 的 "count"、mem 的 "avail_pct"）的键不参与去重
 // 与复检——"count" 不是对象，同 signal 应合并（模型与 L0 共用一条线索）；
@@ -30,6 +34,8 @@ func ObjectKey(k string) string {
 	return k
 }
 
+// ToFinding converts the anomaly into a pending lead; the L0
+// deterministic layer only produces leads, never conclusions.
 // ToFinding 把异常转成 pending 线索：L0 确定性层只产线索不产结论，
 // 确认权在验证回路（DeepDive 阶段模型验证后裁决）。
 // 对象键一并带入：去重与处置后复检必须按对象粒度（同 signal 不同对象
@@ -43,6 +49,9 @@ func (a Anomaly) ToFinding() *Finding {
 	return f
 }
 
+// Signal returns the stable signal name for the anomaly's metric from
+// the authoritative metric→signal map (the single source of dedup keys),
+// falling back to "<metric>_anomaly" for unknown metrics.
 // signalByMetric 指标 → 稳定信号名的权威映射（去重键单一来源）：
 // 模型阶段 findings 与 L0 线索共用同一词表，同根因不会因命名漂移
 // 而分裂成多条重复确认。
@@ -73,6 +82,9 @@ func sevFor(v, warn, crit float64, failDown bool) (Severity, bool) {
 	return "", false
 }
 
+// Judge performs anomaly judgment on the snapshot: per-host threshold
+// checks first, then cross-host comparison; returned anomalies are
+// sorted by severity in descending order.
 // Judge 对快照做异常判定：先逐台按阈值，再做跨主机横向对比。
 // 返回的异常按严重度降序排列。
 func Judge(snap *Snapshot, th Thresholds) []Anomaly {

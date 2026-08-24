@@ -8,6 +8,8 @@ import (
 	"github.com/go-gocel/gocel-core/core/tool"
 )
 
+// L0SnapshotTool returns the l0_snapshot tool that triggers a deterministic
+// quick scan on demand.
 // L0SnapshotTool 返回 l0_snapshot 工具：模型按需触发一轮确定性快检。
 // LLM 是核心——快检在模型需要全局状态时调用（巡检类任务开场、诊断时
 // 需要系统事实），不再无条件每轮前置（帮助/闲聊/知识类问题零开销）。

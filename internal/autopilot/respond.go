@@ -12,6 +12,8 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/remediate"
 )
 
+// ResponsePlans holds batch remediation plans generated in one model call for
+// multiple confirmed findings.
 // ResponsePlans 批量处置方案（一次模型调用为多个已确认故障生成方案，
 // 减少 LLM 调用次数——逐故障调用在故障多时耗时线性增长）。
 type ResponsePlans struct {

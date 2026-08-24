@@ -9,6 +9,7 @@ package model
 
 import "time"
 
+// Thresholds holds the anomaly judgment thresholds. Higher values are worse except for the FailDown metrics.
 // Thresholds 异常判定阈值。语义：除 FailDown 指标外，值越大越差。
 //
 // 数值来源：行业常见静态告警水位（Prometheus/Zabbix 默认规则区间），
@@ -96,6 +97,7 @@ type Thresholds struct {
 	FDCrit float64 // 默认 95
 }
 
+// DefaultThresholds returns the default thresholds.
 // DefaultThresholds 返回默认阈值。
 func DefaultThresholds() Thresholds {
 	return Thresholds{
@@ -120,6 +122,7 @@ func DefaultThresholds() Thresholds {
 	}
 }
 
+// EngineConfig is the configuration of the shared engine core (L0 deterministic layer/workspace/report). WorkDir is required; Local and Hosts need at least one.
 // EngineConfig 是公用内核（L0 确定性层/工作区/报告）的配置。WorkDir
 // 必填；Local 与 Hosts 至少其一。全自动运维引擎的额外配置（处置/验证/
 // 阶段超时与全局时限）见 autopilot.Config。
@@ -151,6 +154,7 @@ type EngineConfig struct {
 	AgentsMDPath string
 }
 
+// DefaultEngineConfig returns the default engine core configuration.
 // DefaultEngineConfig 返回公用内核默认配置。
 func DefaultEngineConfig() EngineConfig {
 	return EngineConfig{

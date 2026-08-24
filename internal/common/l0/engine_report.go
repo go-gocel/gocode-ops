@@ -27,8 +27,8 @@ func (e *Engine) logf(format string, args ...any) {
 	fmt.Fprintf(e.logOut, "[engine] %s "+format+"\n", append([]any{time.Now().Format("01-02 15:04:05")}, args...)...)
 }
 
-// onPhaseEvent 阶段 agent 事件回调：工具调用/结果实时打进引擎日志，
-// 失败结果带 ✗ 标记——能逐条看到模型在做什么。
+// SetLogOut sets the engine log output writer; a nil writer is ignored.
+// SetLogOut 设置引擎日志输出 writer（w 为 nil 时忽略）。
 func (e *Engine) SetLogOut(w io.Writer) {
 	if w != nil {
 		e.logOut = w

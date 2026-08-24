@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+// Run starts the engine main loop: it warms up the L0 cache, then runs the
+// convergence loop (runUntilClean) until the environment is clean.
+// Run 启动引擎主循环：L0 预热后进入收敛循环（runUntilClean），直到环境收敛；
+// 全局时限/信号取消/停滞时如实退出并返回错误。
 func (e *Engine) Run(ctx context.Context) error {
 	e.core.MarkStarted()
 	e.logf("启动：目标 %s，环境探测完成%s",

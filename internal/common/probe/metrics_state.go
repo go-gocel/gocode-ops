@@ -2,6 +2,9 @@ package probe
 
 // metrics_state.go — 状态探针：期望状态逐项采集（配置漂移检测的观测侧）。
 
+// StateProbeFragment returns the collection fragment of the state probe
+// with the given ID, or an empty string when no such probe exists.
+// StateProbeFragment 返回指定 ID 状态探针的采集片段；无该探针时返回空串。
 func StateProbeFragment(env *Env, id string) string {
 	for _, sp := range StateProbes(env) {
 		if sp.ID == id {
@@ -11,6 +14,8 @@ func StateProbeFragment(env *Env, id string) string {
 	return ""
 }
 
+// StateProbes returns the state snapshot probes for config drift detection,
+// taking content-level snapshots of key configuration and state.
 // StateProbes 状态快照探针（配置漂移检测）：对关键配置/状态做内容
 // 级快照，跨轮对比“变化即痕”——无日志痕迹的故障（配置被改、监听
 // 变化、计划任务被改）由此确定性检出。首轮为基线快照，后续轮对比；

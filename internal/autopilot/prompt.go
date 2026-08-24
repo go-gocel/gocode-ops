@@ -16,6 +16,7 @@ import (
 // 输出契约由 taskPrompt/respondTaskPrompt 在任务层附加，prompt.engine.md
 // 改写不丢协议约束。
 
+// SystemPrompt returns the built-in system prompt for the engine's phase agents.
 // SystemPrompt 返回全自动运维引擎阶段 agent 的内置系统提示词。
 //
 // 组成：引擎专属面（身份 + 系统协作 SOP）+ 共享规则与方法论（单一来源
@@ -86,6 +87,8 @@ l0_facts 是引擎确定性采集的环境事实（监听端口/用户/大文件
   （R14 实测：误发本地 find / 使引擎挂起 12 分钟）。`
 }
 
+// PromptBody returns the built-in engine prompt body released by init to
+// .gocode/prompt.engine.md.
 // PromptBody 返回 init 释放到 .gocode/prompt.engine.md 的内置引擎提示
 // 正文——释放内容与内置 SystemPrompt 的引擎专属面同源（单一来源），
 // 文件加载后即作为系统提示词。与交互式运维助手的 PromptBody 相互独立，

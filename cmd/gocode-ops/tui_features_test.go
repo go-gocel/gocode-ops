@@ -12,7 +12,6 @@ import (
 	"github.com/go-gocel/gocel-core/types"
 	"github.com/go-gocel/gocel/tools/shell"
 	"github.com/go-gocel/termagent/pkg/theme"
-	"github.com/go-gocel/termagent/testutil"
 
 	"github.com/go-gocel/gocode-ops/internal/common/remote"
 	"github.com/go-gocel/gocode-ops/internal/common/session"
@@ -206,7 +205,7 @@ func TestHostDetail_OpenAndClose(t *testing.T) {
 	m.pushHosts()
 	// 主机页聚焦后 Enter 打开详情（表格 onSelect）
 	m.execCommand(cmdHosts)
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("enter"))
 	if m.hostDetail == nil {
 		t.Fatal("enter on hosts tab should open detail")
 	}
@@ -216,7 +215,7 @@ func TestHostDetail_OpenAndClose(t *testing.T) {
 			t.Errorf("host detail 缺少 %q:\n%s", want, view)
 		}
 	}
-	m.Update(testutil.Key("esc"))
+	m.Update(Key("esc"))
 	if m.hostDetail != nil {
 		t.Fatal("esc should close host detail")
 	}
@@ -227,23 +226,23 @@ func TestHostDetail_OpenAndClose(t *testing.T) {
 func TestTabJump_AltKeys(t *testing.T) {
 	m := newTestRoot()
 	// 输入框聚焦（默认）时 Alt+2 直接切到工具页，焦点仍留在输入框
-	m.Update(testutil.Key("alt+2"))
+	m.Update(Key("alt+2"))
 	if m.tabs.Active() != toolsTabIndex {
 		t.Fatalf("alt+2 should jump to tools tab, active = %d", m.tabs.Active())
 	}
 	if m.fm.Focused() != "input" {
 		t.Fatalf("tab jump must keep input focus, focused = %q", m.fm.Focused())
 	}
-	m.Update(testutil.Key("alt+3"))
+	m.Update(Key("alt+3"))
 	if m.tabs.Active() != hostsTabIndex {
 		t.Fatalf("alt+3 should jump to hosts tab")
 	}
-	m.Update(testutil.Key("alt+1"))
+	m.Update(Key("alt+1"))
 	if m.tabs.Active() != chatTabIndex {
 		t.Fatalf("alt+1 should jump to chat tab")
 	}
 	// 未知组合忽略
-	m.Update(testutil.Key("alt+9"))
+	m.Update(Key("alt+9"))
 	if m.tabs.Active() != chatTabIndex {
 		t.Fatal("alt+9 should be ignored")
 	}
@@ -323,9 +322,9 @@ func TestHelpPane_ContentAndToggle(t *testing.T) {
 	if !m.help {
 		t.Fatal("/help should open help pane")
 	}
-	m.Update(testutil.Key("pgdown"))
-	m.Update(testutil.Key("up"))
-	m.Update(testutil.Key("?"))
+	m.Update(Key("pgdown"))
+	m.Update(Key("up"))
+	m.Update(Key("?"))
 	if m.help {
 		t.Fatal("? should close help pane")
 	}

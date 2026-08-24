@@ -24,6 +24,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// ExperienceEntry is the statistical record of one accumulated experience.
 // ExperienceEntry 一条经验的统计沉淀。
 type ExperienceEntry struct {
 	Signal     string  `json:"signal"`
@@ -37,11 +38,13 @@ type ExperienceEntry struct {
 	Confidence float64 `json:"confidence"`     // 1 - misreport 比例
 }
 
+// Experience is the experience store mixing global and per-host entries; when the signal is the same, the host dimension wins.
 // Experience 经验库（全局 + per-host 混合，Signal 相同时 host 维度优先）。
 type Experience struct {
 	Entries []ExperienceEntry `json:"entries"`
 }
 
+// HostDossier is the dossier of a single host.
 // HostDossier 单台主机档案。
 type HostDossier struct {
 	Host      string   `json:"host"`
@@ -51,6 +54,7 @@ type HostDossier struct {
 	UpdatedAt string   `json:"updated_at"`
 }
 
+// Memory is the memory repository (experience store + host dossier directory).
 // Memory 记忆仓库（经验库 + 档案目录）。
 type Memory struct {
 	dir string // <workDir>/.gocode/memory
@@ -61,6 +65,7 @@ type Memory struct {
 // memoryDir 记忆目录。
 func memoryDir(workDir string) string { return filepath.Join(model.ConfigDir(workDir), "memory") }
 
+// NewMemory loads or initializes the memory repository, creating the directory when it does not exist.
 // NewMemory 加载/初始化记忆仓库（目录不存在时自动创建）。
 func NewMemory(workDir string) (*Memory, error) {
 	dir := memoryDir(workDir)
@@ -143,6 +148,7 @@ func mergeExperience(mem, disk *Experience) {
 	}
 }
 
+// Learn records the experience tuple when a finding is closed (remediated or dismissed).
 // Learn 学习沉淀：发现关闭（处置成功/排除）时记录经验三元组。
 // f 为已关闭的 finding（Remediated 或 Dismissed）。返回是否有更新。
 func (m *Memory) Learn(f *model.Finding) bool {
@@ -241,6 +247,7 @@ func (m *Memory) syncGlobalLocked(signal, pattern string) {
 	}
 }
 
+// RecordHostEvent records a host dossier event (history/recovery/quirk).
 // RecordHostEvent 记录主机档案（历史/恢复/易错点）。跨进程持文件锁 +
 // 锁内重读并集追加——引擎与助手并行写同一主机档案时，后写者不得抹掉
 // 先写者的事件（原子写只防半截，不防丢更新）。
@@ -285,6 +292,7 @@ func (m *Memory) RecordHostEvent(host, kind, text string) {
 	})
 }
 
+// Recall retrieves experiences matching a signal (optionally restricted to one host) and returns summaries sorted by confidence in descending order.
 // Recall 经验检索：signal（+可选 host）命中经验，返回按置信度降序的
 // 摘要列表（供大脑 recall 工具与提示词注入）。
 func (m *Memory) Recall(signal, host string, limit int) []string {
@@ -320,6 +328,7 @@ func (m *Memory) Recall(signal, host string, limit int) []string {
 	return out
 }
 
+// DossierBrief returns the host dossier brief (for prompt injection).
 // DossierBrief 主机档案摘要（提示词注入用）。
 func (m *Memory) DossierBrief(host string) string {
 	if m == nil || host == "" {
@@ -353,6 +362,7 @@ func (m *Memory) DossierBrief(host string) string {
 	return strings.TrimSpace(b.String())
 }
 
+// ExperienceBrief returns a brief of the whole experience store (prompt injection: the brain knows what experience contains).
 // ExperienceBrief 全库摘要（提示词注入：大脑知道"经验里有啥"）。
 func (m *Memory) ExperienceBrief(limit int) string {
 	if m == nil {

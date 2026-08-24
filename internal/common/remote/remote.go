@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+// Host is a single remote host from the inventory.
 // Host 是清单中的一台远程主机。
 type Host struct {
 	Name         string `yaml:"name"`
@@ -28,11 +29,13 @@ type Host struct {
 	HostKeyCheck *bool  `yaml:"host_key_check,omitempty"`
 }
 
+// Inventory is the host inventory.
 // Inventory 是主机清单。
 type Inventory struct {
 	Hosts []Host `yaml:"hosts"`
 }
 
+// RemoteConfig is the runtime configuration for remote execution.
 // RemoteConfig 是远程执行的运行配置。
 type RemoteConfig struct {
 	// InventoryPath 清单文件路径（凭证所在，模型不可读）。
@@ -45,6 +48,8 @@ type RemoteConfig struct {
 	OnProgress func(RemoteProgress)
 }
 
+// RemoteProgress is one remote execution progress event, either a command
+// output chunk or transfer progress.
 // RemoteProgress 是一次远程执行进度事件（命令输出块或传输进度）。
 type RemoteProgress struct {
 	// Host 产生事件的主机别名。
@@ -68,6 +73,9 @@ const progressChunkCap = 8000
 // remoteProgressKey 是 context 中进度回调的键。
 type remoteProgressKey struct{}
 
+// WithRemoteProgress injects a remote progress callback into the context,
+// so remote_* tools stream output chunks and transfer progress in real
+// time (throttled to ~50ms); without it behavior is unchanged.
 // WithRemoteProgress 向 context 注入远程进度回调。注入后 remote_* 工具
 // 执行期间会把命令输出块、传输进度实时回传（节流 ~50ms）；不注入则行为
 // 不变（整段返回）。回调可能从多个 goroutine 触发，须线程安全。
@@ -78,6 +86,9 @@ func WithRemoteProgress(ctx context.Context, sink func(RemoteProgress)) context.
 	return context.WithValue(ctx, remoteProgressKey{}, sink)
 }
 
+// RemoteProgressSink extracts the progress callback previously injected
+// by WithRemoteProgress, or nil when none is present.
+// RemoteProgressSink 取出 WithRemoteProgress 注入的进度回调；未注入时返回 nil。
 func RemoteProgressSink(ctx context.Context) func(RemoteProgress) {
 	if fn, ok := ctx.Value(remoteProgressKey{}).(func(RemoteProgress)); ok && fn != nil {
 		return fn
@@ -85,6 +96,8 @@ func RemoteProgressSink(ctx context.Context) func(RemoteProgress) {
 	return nil
 }
 
+// RemoteExecutor abstracts remote execution so tests and UIs can
+// substitute implementations.
 // RemoteExecutor 抽象远程执行（测试与界面可替换实现）。
 //
 // 工具粒度说明：远程能力按职责拆为单机执行、批量执行、上传、下载、

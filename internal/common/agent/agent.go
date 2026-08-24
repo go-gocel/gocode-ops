@@ -25,6 +25,7 @@ import (
 	tl "github.com/go-gocel/gocode-ops/internal/common/tools"
 )
 
+// AgentConfig is the unified assembly configuration for the ops domain.
 // AgentConfig 是 ops 领域的统一装配配置：交互式运维助手与全自动运维引擎的
 // 阶段 agent 共用同一个装配入口（NewAgent），差异仅通过配置表达（工具集、
 // 提示词、模块、步数）。安全基础设施（workspace 文件边界 + 高危命令
@@ -59,6 +60,7 @@ type AgentConfig struct {
 	L0 L0Snapshooter
 }
 
+// NewAgent assembles a ReAct policy agent from the given config.
 // NewAgent 是 ops 领域的统一装配入口：按配置装配一个 React 策略 Agent
 // （harness 装配器），固定挂载 workspace 文件边界守卫与高危命令守卫。
 // 交互式运维助手与全自动运维引擎的阶段 agent 都从这里装配。

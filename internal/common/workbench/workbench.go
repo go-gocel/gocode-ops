@@ -25,6 +25,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// WorkbenchProblem is an in-progress problem on the operation map.
 // WorkbenchProblem 作战图中的进行中问题。
 type WorkbenchProblem struct {
 	ID         string   `json:"id"` // finding ID
@@ -37,6 +38,7 @@ type WorkbenchProblem struct {
 	UpdatedAt  string   `json:"updated_at"`
 }
 
+// WorkbenchHypothesis is an in-progress hypothesis.
 // WorkbenchHypothesis 进行中假设。
 type WorkbenchHypothesis struct {
 	ID        string   `json:"id"`
@@ -48,6 +50,7 @@ type WorkbenchHypothesis struct {
 	UpdatedAt string   `json:"updated_at"`
 }
 
+// PendingCheck is a low-confidence verdict awaiting evidence.
 // PendingCheck 等待证据的裁决。
 type PendingCheck struct {
 	FindingID string `json:"finding_id"`
@@ -56,6 +59,7 @@ type PendingCheck struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// Workbench is the cognitive workbench holding the LLM's cross-round cognition state.
 // Workbench 认知工作台。
 type Workbench struct {
 	Problems   []WorkbenchProblem    `json:"problems,omitempty"`
@@ -71,11 +75,13 @@ type Workbench struct {
 	path string
 }
 
+// WorkbenchPath returns the path of the workbench state file.
 // WorkbenchPath 工作台文件路径。
 func WorkbenchPath(workDir string) string {
 	return filepath.Join(model.ConfigDir(workDir), "workbench.json")
 }
 
+// NewWorkbench loads or initializes the workbench for the given working directory.
 // NewWorkbench 加载/初始化工作台。
 func NewWorkbench(workDir string) (*Workbench, error) {
 	w := &Workbench{path: WorkbenchPath(workDir)}
@@ -102,6 +108,7 @@ func (w *Workbench) saveLocked() {
 	}
 }
 
+// WriteCount returns the cognitive activity write count (concurrency-safe).
 // WriteCount 返回认知活动计数（运行摘要用；并发安全）。
 func (w *Workbench) WriteCount() int {
 	w.mu.Lock()
@@ -109,6 +116,7 @@ func (w *Workbench) WriteCount() int {
 	return w.Writes
 }
 
+// UpsertProblem updates or inserts an operation-map problem and persists the workbench.
 // UpsertProblem 更新/新建作战图问题（大脑写入）。
 func (w *Workbench) UpsertProblem(p WorkbenchProblem) {
 	w.mu.Lock()
@@ -125,6 +133,7 @@ func (w *Workbench) UpsertProblem(p WorkbenchProblem) {
 	w.saveLocked()
 }
 
+// RemoveProblem removes the problem with the given ID.
 // RemoveProblem 移除已关闭问题（finding closed 时调用）。
 func (w *Workbench) RemoveProblem(id string) {
 	w.mu.Lock()
@@ -138,6 +147,7 @@ func (w *Workbench) RemoveProblem(id string) {
 	}
 }
 
+// AddHypothesis creates a hypothesis and returns its ID, reusing the existing ID when the claim already exists.
 // AddHypothesis 新建假设；同 claim 已存在时返回现有 ID（幂等）。
 func (w *Workbench) AddHypothesis(claim, nextCheck string) string {
 	w.mu.Lock()
@@ -157,6 +167,7 @@ func (w *Workbench) AddHypothesis(claim, nextCheck string) string {
 	return id
 }
 
+// UpdateHypothesis updates a hypothesis with new evidence, next check, and activation state.
 // UpdateHypothesis 更新假设（支持/反对证据追加、next_check、激活状态）。
 func (w *Workbench) UpdateHypothesis(id, evidence string, support bool, nextCheck string) bool {
 	w.mu.Lock()
@@ -184,6 +195,7 @@ func (w *Workbench) UpdateHypothesis(id, evidence string, support bool, nextChec
 	return false
 }
 
+// ActivateHypotheses activates hypotheses awaiting evidence and returns summaries of the activated ones.
 // ActivateHypotheses 证据变化时激活待验证假设（引擎在 L0 新线索后调用）：
 // 返回被激活的假设摘要（提示词注入：大脑知道哪些假设需要续查）。
 func (w *Workbench) ActivateHypotheses() []string {
@@ -203,6 +215,7 @@ func (w *Workbench) ActivateHypotheses() []string {
 	return out
 }
 
+// AddPendingCheck registers a pending check for a finding awaiting evidence.
 // AddPendingCheck 登记待验证裁决（低置信裁决自动补证据）。
 func (w *Workbench) AddPendingCheck(findingID, need, probe string) {
 	w.mu.Lock()
@@ -219,6 +232,7 @@ func (w *Workbench) AddPendingCheck(findingID, need, probe string) {
 	w.saveLocked()
 }
 
+// ResolvePendingChecks resolves all pending checks and returns them for re-adjudication.
 // ResolvePendingChecks 解析全部待验证（证据已到位时返回摘要供重裁）。
 func (w *Workbench) ResolvePendingChecks() []PendingCheck {
 	w.mu.Lock()
@@ -229,6 +243,7 @@ func (w *Workbench) ResolvePendingChecks() []PendingCheck {
 	return out
 }
 
+// RecordAction records a cognitive action and reports whether it is new.
 // RecordAction 记录认知动作（防重复劳动：同 finding 同动作不重复执行）。
 // 返回是否新动作（重复返回 false）。
 func (w *Workbench) RecordAction(key string) bool {
@@ -247,6 +262,7 @@ func (w *Workbench) RecordAction(key string) bool {
 	return true
 }
 
+// Brief renders a compact workbench summary bounded by the given budget.
 // Brief 紧凑摘要（提示词注入：作战图注入而非全量事实转储）。
 // 每项限长，总量受 budget 约束。
 func (w *Workbench) Brief(budget int) string {
@@ -311,6 +327,7 @@ func ternary(cond bool, a, b string) string {
 	return b
 }
 
+// SortedProblems returns the sorted problem ID list for the scheduler.
 // SortedProblems 按更新时间排序的问题 ID 列表（调度器用）。
 func (w *Workbench) SortedProblems() []string {
 	w.mu.Lock()

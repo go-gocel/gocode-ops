@@ -24,6 +24,7 @@ type Session struct {
 	stream  bool                    // 逐 token 流式模型调用（需 sink 非 nil）
 }
 
+// NewSession creates a unified execution session.
 // NewSession 创建统一执行会话。
 // sink 非 nil 时 agent 事件（token/工具调用/结果）实时回调给调用方；
 // stream 为 true 时启用逐 token 流式输出。
@@ -31,6 +32,8 @@ func NewSession(app *agents.App, sink func(*types.Event) bool, stream bool) *Ses
 	return &Session{app: app, sink: sink, stream: stream}
 }
 
+// Run executes one round: appends the user instruction, runs the agent,
+// and updates the history.
 // Run 执行一轮：追加用户指令 → agent 运行 → 更新历史。
 // 返回最终结果；失败时历史回滚（不带着残缺上下文进入下一轮）。
 func (s *Session) Run(ctx context.Context, task string) (*kernel.Result, error) {
@@ -89,6 +92,8 @@ func msgSize(m *types.Message) int {
 	return len(m.Content)
 }
 
+// RunFresh runs one independent task with a cleared history (staged-task
+// semantics).
 // RunFresh 执行一轮独立任务：清空历史后运行（阶段式任务语义）。
 //
 // 阶段间状态不靠对话历史累积——已由调用方通过工作区状态摘要注入任务
@@ -98,6 +103,8 @@ func (s *Session) RunFresh(ctx context.Context, task string) (*kernel.Result, er
 	return s.RunFreshSteps(ctx, task, 0)
 }
 
+// RunFreshSteps runs one independent task with a ReAct step budget
+// (effective when maxSteps > 0; <= 0 behaves like RunFresh).
 // RunFreshSteps 执行一轮独立任务并限制 ReAct 步数（maxSteps>0 时生效，
 // <=0 等同 RunFresh）。步数预算是阶段职责的机械约束：如 survey 巡检
 // 阶段限步防止模型在"浅扫"阶段无界深挖（深挖属于 deepdive 职责）——
@@ -123,6 +130,7 @@ func (s *Session) RunFreshSteps(ctx context.Context, task string, maxSteps int) 
 	return result, nil
 }
 
+// Reset clears the conversation context (new session).
 // Reset 清空对话上下文（新会话）。
 func (s *Session) Reset() {
 	s.history = nil

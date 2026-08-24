@@ -6,6 +6,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// ParallelConfig holds the parallel scheduling configuration (parallelism is a first-class citizen by design).
 // ParallelConfig 并行调度配置（架构：并行是第一公民）。
 type ParallelConfig struct {
 	// Workers 模型 worker 并发数：DeepDive/Respond/终裁批次并行上限——
@@ -25,6 +26,7 @@ type ParallelConfig struct {
 	PerFindingModelBudget int
 }
 
+// Config is the configuration of the autonomous operations engine: the shared kernel (model.EngineConfig) plus model-phase timeouts.
 // Config 是全自动运维引擎的配置：公用内核（model.EngineConfig：工作目录/目标/
 // 阈值/采集节奏）+ 模型阶段超时。WorkDir 必填；Local 与 Hosts 至少其一
 // （由 l0.NewEngine 校验）。
@@ -57,6 +59,7 @@ type Config struct {
 	Timeout time.Duration
 }
 
+// DefaultConfig returns the default configuration of the autonomous operations engine.
 // DefaultConfig 返回全自动运维引擎默认配置。
 func DefaultConfig() Config {
 	return Config{

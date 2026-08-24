@@ -39,6 +39,7 @@ const (
 	clockSkewCritSecs = 300.0
 )
 
+// Engine is the shared kernel of gocode-ops (L0 inspection + workspace + report).
 // Engine 公用内核（L0 + 工作区 + 报告）。
 type Engine struct {
 	cfg EngineConfig
@@ -70,12 +71,14 @@ type Engine struct {
 	stateMu sync.Mutex
 }
 
+// NewEngine creates the shared kernel; remote may be nil for local-only operation.
 // NewEngine 创建公用内核。remote 可为 nil：仅本机。
 // cfg.AgentsMDPath 非空时注入环境信息（供引擎阶段 agent 使用）。
 func NewEngine(cfg EngineConfig, remote RemoteExecutor) (*Engine, error) {
 	return newEngine(cfg, remote, DetectEnv(context.Background()))
 }
 
+// NewEngineWithEnv is like NewEngine but uses the caller-provided deterministic environment probe.
 // NewEngineWithEnv 与 NewEngine 相同，但使用调用方提供的确定性环境探测
 // 结果（测试注入/嵌入方预探测）。
 func NewEngineWithEnv(cfg EngineConfig, remote RemoteExecutor, env *Env) (*Engine, error) {
@@ -110,19 +113,27 @@ func newEngine(cfg EngineConfig, remote RemoteExecutor, env *Env) (*Engine, erro
 	}, nil
 }
 
+// Workspace returns the engine's shared workspace.
+// Workspace 返回引擎关联的共享工作区。
 func (e *Engine) Workspace() *Workspace { return e.ws }
+// Config returns the engine configuration.
+// Config 返回引擎配置。
 func (e *Engine) Config() EngineConfig  { return e.cfg }
 
+// Env returns the deterministic environment probe result.
 // Env 返回确定性环境探测结果。
 func (e *Engine) Env() *Env { return e.col.Env() }
 
+// Targets returns the inspection target list (local host name first, then remote aliases).
 // Targets 返回巡检目标列表（本机显示名在前，远程别名在后）。
 func (e *Engine) Targets() []string { return e.col.Targets() }
 
+// L0Round runs one round of the L0 inspection, writes leads/baseline/facts into the shared workspace, and returns the new leads.
 // L0Round 运行一轮 L0 快检并把线索/基线/事实写入共享工作区，返回本轮
 // 新检出的线索。交互式运维助手（SnapshotL0）与全自动运维引擎 主循环共用。
 func (e *Engine) L0Round(ctx context.Context) []*Finding { return e.l0Round(ctx) }
 
+// LastLeads returns the number of new leads from the last L0 round after deduplication.
 // LastLeads 返回上一轮 L0 去重后新增的线索数（引擎收敛判定用）。
 func (e *Engine) LastLeads() int {
 	e.stateMu.Lock()
@@ -130,6 +141,7 @@ func (e *Engine) LastLeads() int {
 	return e.lastLeads
 }
 
+// CollectFail reports whether any host failed whole-machine collection in the last L0 round (channel errors: SSH loss, expired password, locked account, etc.).
 // CollectFail 返回上一轮 L0 快检是否存在主机整机采集失败（通道异常：
 // SSH 失联/口令过期/账户锁定等）。引擎收敛判定用——存在通道异常时
 // 不得判"环境干净"，由停滞/时限如实非零退出（失联被模型裁决 dismissed
@@ -140,6 +152,7 @@ func (e *Engine) CollectFail() bool {
 	return e.collectFail
 }
 
+// RebaselineNext schedules a silent re-baseline for the next L0 round and records the engine's own action commands.
 // RebaselineNext 置位下一轮 L0 的静默重基线并记录自身动作命令（处置
 // 执行后由引擎调用——引擎自身变更不产漂移线索，见 stateDrift）。
 func (e *Engine) RebaselineNext(cmds []string) {
@@ -149,29 +162,34 @@ func (e *Engine) RebaselineNext(cmds []string) {
 	e.stateMu.Unlock()
 }
 
+// InvalidateFactCache invalidates the re-probe cache for the given host (called after the engine performs remediation).
 // InvalidateFactCache 失效指定主机的重探针缓存（引擎处置执行后调用）：
 // 处置后复检需实采验证对象确实消失，而非复用 TTL 内旧缓存。
 func (e *Engine) InvalidateFactCache(host string) {
 	e.col.InvalidateFactCache(host)
 }
 
+// CollectSnapshot collects a full inspection round without writing baselines or producing leads.
 // CollectSnapshot 采集一轮完整快检（不写基线/不产线索——引擎处置
 // 后确定性复检用）。
 func (e *Engine) CollectSnapshot(ctx context.Context) (*Snapshot, error) {
 	return e.col.Collect(ctx)
 }
 
+// CollectProbes collects only the specified probes (deterministic re-check after remediation): lighter than a full inspection.
 // CollectProbes 定向采集指定探针（处置后确定性复检用）：只采集判定
 // 给定信号所需的指标/事实，比全量快检轻量（见 collector.CollectProbes）。
 func (e *Engine) CollectProbes(ctx context.Context, ms []Metric, factIDs []string) (*Snapshot, error) {
 	return e.col.CollectProbes(ctx, ms, factIDs)
 }
 
+// CollectMetrics collects the given probes from all targets without writing baselines or producing leads.
 // CollectMetrics 按给定探针清单采集全部目标（不写基线/不产线索）。
 func (e *Engine) CollectMetrics(ctx context.Context, ms []Metric) (*Snapshot, error) {
 	return e.col.CollectMetrics(ctx, ms)
 }
 
+// SetConclusion writes the convergence exit conclusion (rendered into the final report).
 // SetConclusion 写入收敛退出结论（渲染进最终报告）。
 func (e *Engine) SetConclusion(s string) {
 	e.stateMu.Lock()
@@ -179,6 +197,7 @@ func (e *Engine) SetConclusion(s string) {
 	e.stateMu.Unlock()
 }
 
+// Conclusion returns the convergence exit conclusion.
 // Conclusion 返回收敛退出结论（测试/嵌入方读取）。
 func (e *Engine) Conclusion() string {
 	e.stateMu.Lock()
@@ -186,6 +205,7 @@ func (e *Engine) Conclusion() string {
 	return e.conclusion
 }
 
+// MarkStarted records the start time (idempotent; only the first call takes effect).
 // MarkStarted 记录启动时间（幂等；首次调用生效）。
 func (e *Engine) MarkStarted() time.Time {
 	e.stateMu.Lock()
@@ -196,6 +216,7 @@ func (e *Engine) MarkStarted() time.Time {
 	return e.started
 }
 
+// Started returns the start time (zero value when not started).
 // Started 返回启动时间（未启动为零值）。
 func (e *Engine) Started() time.Time {
 	e.stateMu.Lock()
@@ -203,14 +224,17 @@ func (e *Engine) Started() time.Time {
 	return e.started
 }
 
+// Logf writes engine log output (engine and assistant share the same output channel).
 // Logf 引擎日志输出（engine/assistant 复用同一输出通道）。
 func (e *Engine) Logf(format string, args ...any) {
 	e.logf(format, args...)
 }
 
+// ReportPath returns the live report path.
 // ReportPath 返回实时报告路径。
 func (e *Engine) ReportPath() string { return filepath.Join(e.cfg.WorkDir, "report.md") }
 
+// RenderReport renders the live report (refreshed after each interactive assistant task round).
 // RenderReport 渲染实时报告（交互式运维助手每轮任务结束后刷新——与全自动运维引擎
 // 共用同一份 report.md，工作区状态跨产品延续）。
 func (e *Engine) RenderReport() error {
@@ -218,6 +242,7 @@ func (e *Engine) RenderReport() error {
 	return e.renderReport()
 }
 
+// SnapshotL0 is the deterministic base for the interactive assistant: runs an L0 round and returns summary text for the task context.
 // SnapshotL0 交互式运维助手的确定性底座：运行一轮 L0 快检并把线索/基线/事实
 // 写入共享工作区，返回可注入任务上下文的摘要文本（新线索 + 环境事实）。
 // 交互式运维助手与全自动运维引擎 共用同一 findings/基线/报告——这是两种形态共用的核心。
@@ -259,6 +284,7 @@ func (e *Engine) SnapshotL0(ctx context.Context) (string, error) {
 	return b.String(), nil
 }
 
+// Warmup pre-runs one L0 inspection round (called asynchronously by the interactive assistant after the base starts).
 // Warmup 预热一轮 L0 快检（交互式运维助手在底座启动后异步调用：重探针全盘
 // 扫描在后台完成，操作员首个任务的快检即时返回；线索/基线/事实同样
 // 就绪）。与任务快检轮由采集器整轮串行化，并发安全。

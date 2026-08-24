@@ -17,6 +17,8 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/remote"
 )
 
+// Executor runs remediation plans; idempotency is guaranteed by finding
+// state, so a confirmed finding is remediated only once.
 // Executor 处置执行器（幂等由 finding 状态保证：confirmed 只处置一次）。
 type Executor struct {
 	cfg    Config
@@ -29,6 +31,9 @@ type Executor struct {
 	findingID string
 }
 
+// NewExecutor creates a remediation executor; guard must be a PolicyAuto
+// guard so whitelist registration for the remediation channel only happens
+// through this package's AllowAuto calls.
 // NewExecutor 创建处置执行器。guard 必须为 PolicyAuto 守卫（处置通道
 // 登记白名单仅经本包 AllowAuto 调用，模型发起的命令永远无法进入）。
 func NewExecutor(cfg Config, g *guard.RiskyCommandGuard, rmt remote.RemoteExecutor, logf func(format string, args ...any), rollbacks *atomic.Int64) *Executor {
@@ -45,6 +50,9 @@ func (ex *Executor) log(format string, args ...any) {
 	}
 }
 
+// Execute runs a remediation plan: contract validation, guard pre-check,
+// per-action execution, verification, and rollback on failure; it returns
+// each action's record and whether all actions verified.
 // Execute 执行处置方案：
 // 契约校验 → 守卫预检（硬禁/自影响拒绝）→ 逐动作执行 → 验证 → 失败回滚。
 // 返回每个动作的执行记录与是否全部验证通过（allVerified 为 false 时
@@ -316,6 +324,10 @@ func (ex *Executor) exec(ctx context.Context, host, cmd string, timeout time.Dur
 	return out, nil
 }
 
+// ForceRollback forcibly rolls back every executed action when a lockout
+// risk is detected, overriding Execute's "verified actions are not rolled
+// back" semantics because channel-level changes may cut the management
+// channel even when the model's verify passes.
 // ForceRollback 锁死风险强制回滚：全部已执行动作逐一执行回滚命令
 // （覆盖 Execute"已验证不回滚"的语义——通道级变更即使模型 verify 通过
 // 也可能切断管理通道，必须整体回退）。回滚命令经守卫预检；失败如实
@@ -353,6 +365,8 @@ func (ex *Executor) ForceRollback(ctx context.Context, host string, plan *Plan, 
 	return acts
 }
 
+// PrecheckSatisfied runs the idempotency pre-check before remediation,
+// executing each action's verify and comparing check_up.
 // PrecheckSatisfied 处置前幂等预检：逐动作运行 verify 并比对 check_up，
 // 全部满足（且无恒真验证、判据引用处置对象）说明前次处置已生效，返回
 // true 与预检动作记录（跳过副作用命令）。任一动作不满足即返回 false
@@ -397,6 +411,9 @@ func PrecheckSatisfied(ctx context.Context, cfg Config, rmt remote.RemoteExecuto
 	return len(acts) == len(plan.Actions) && len(acts) > 0, acts
 }
 
+// SelfChannelOK verifies the management channel with a fresh connection
+// probe, bypassing the connection pool so reloads or firewall changes
+// cannot yield false positives.
 // SelfChannelOK 自通道校验：以新连接探测管理通道（Probe 直连、不走
 // 连接池——sshd reload/防火墙变更后既有会话仍存活，池内连接会假
 // 通过；Probe 每次 dial 新连接，是锁死风险的可靠探测）。
@@ -411,6 +428,7 @@ func SelfChannelOK(ctx context.Context, cfg Config, rmt remote.RemoteExecutor, h
 	return st[host] == "在线"
 }
 
+// SummarizeActions summarizes remediation results for reports and logs.
 // SummarizeActions 处置结果摘要（报告与日志用）。
 // 状态优先级：建议（未执行）> 失败 > 回滚 > 成功。
 func SummarizeActions(acts []model.Action) string {

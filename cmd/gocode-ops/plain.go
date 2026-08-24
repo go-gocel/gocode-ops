@@ -35,6 +35,8 @@ type plainPrinter struct {
 	lastNewline bool
 }
 
+// Sink processes an agent event, printing reasoning and tool activity to stderr and model tokens to stdout. It always returns true.
+// Sink 处理 agent 事件：思考与工具过程输出到 stderr，模型回答输出到 stdout；始终返回 true。
 func (p *plainPrinter) Sink(ev *types.Event) bool {
 	switch ev.Type {
 	case types.EventReasoning:

@@ -75,6 +75,8 @@ var signalByMetric = map[string]string{
 	"collect_visibility": "target_no_data",
 }
 
+// SignalNames returns the stable signal table, referenced by protocol
+// prompts so the model names signals per the table.
 // SignalNames 返回稳定信号词表（供协议提示词引用，模型按词表命名）。
 func SignalNames() []string {
 	out := make([]string, 0, len(signalByMetric))
@@ -85,6 +87,10 @@ func SignalNames() []string {
 	return out
 }
 
+// SignalProbePlan returns the targeted collection plan needed to recheck
+// a signal after remediation (deterministic rechecking): metricIDs are
+// the numeric probe IDs and factIDs the security-fact probe IDs; an
+// empty result means the signal has no judgment-layer source.
 // SignalProbePlan 返回复检 signal 所需的定向采集计划（处置后确定性
 // 复检用）：metricIDs=数值指标探针 ID，factIDs=安全事实探针 ID。
 // 返回空=该 signal 无判定层源（如 config_drift 由基线机制负责）——
@@ -155,6 +161,9 @@ func SignalProbePlan(env *Env, signal string) (metricIDs, factIDs []string) {
 	return metricIDs, factIDs
 }
 
+// KnownSignals returns all known stable signal names, the exported face
+// of the dedup-key table's single source: L0 probe signals plus common
+// model-phase signals.
 // KnownSignals 返回全部已知稳定信号名（去重键词表单一来源的导出面）：
 // L0 探针信号 + 模型阶段常见信号。respond 处置目标匹配用它区分
 // "模型乱写 finding_id"（候选不在词表，可单目标兜底）与"写错信号"

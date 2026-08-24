@@ -7,12 +7,14 @@ import (
 	"time"
 )
 
+// Snapshot is the structured result of one round of fast inspection.
 // Snapshot 一轮快检的结构化结果。
 type Snapshot struct {
 	At    time.Time    `json:"at"`
 	Hosts []HostMetric `json:"hosts"`
 }
 
+// HostMetric is the inspection result of a single host.
 // HostMetric 单台主机的快检结果。
 type HostMetric struct {
 	Host    string                        `json:"host"`
@@ -33,6 +35,8 @@ type HostMetric struct {
 	FactCoverage map[string]string `json:"fact_coverage,omitempty"`
 }
 
+// CPUInfo is the CPU usage over the most recent sampling interval
+// (derived from /proc/stat deltas).
 // CPUInfo 最近采样间隔的 CPU 使用率（/proc/stat 增量）。
 type CPUInfo struct {
 	Pct   float64 `json:"pct"`   // 使用率 %
@@ -40,6 +44,9 @@ type CPUInfo struct {
 	NProc int     `json:"nproc"` // 可见核数
 }
 
+// SetError records an error message for the given probe or collector key,
+// lazily initializing the Errors map.
+// SetError 记录指定探针或采集键的错误信息（惰性初始化 Errors 映射）。
 func (hm *HostMetric) SetError(id, msg string) {
 	if hm.Errors == nil {
 		hm.Errors = map[string]string{}
@@ -47,6 +54,9 @@ func (hm *HostMetric) SetError(id, msg string) {
 	hm.Errors[id] = msg
 }
 
+// SetRaw records the raw probe output for the given ID, truncated to
+// 2048 bytes, lazily initializing the Raw map.
+// SetRaw 记录指定探针 ID 的原始输出（截断到 2048 字节，惰性初始化 Raw 映射）。
 func (hm *HostMetric) SetRaw(id, frag string) {
 	if hm.Raw == nil {
 		hm.Raw = map[string]string{}

@@ -57,6 +57,7 @@ func loadAssistantPrompt(workDir, host string, policy guard.Policy, vars map[str
 	return SystemPrompt(host, workDir, policy)
 }
 
+// SystemPrompt returns the built-in system prompt of the interactive operations agent.
 // SystemPrompt 返回交互式运维 agent 的内置系统提示词。
 //
 // host 是目标主机标识（仅展示）；workDir 是工作目录；policy 是当前高危
@@ -141,6 +142,7 @@ func systemPromptBody(host, workDir string) string {
 `, host, workDir)
 }
 
+// PromptBody returns the built-in interactive prompt body that init releases to .gocode/prompt.assistant.md.
 // PromptBody 返回 init 释放到 .gocode/prompt.assistant.md 的内置交互提示
 // 正文（{{host}}/{{workdir}} 占位，加载时渲染）——释放内容与内置
 // SystemPrompt 的产品专属面同源（单一来源），文件加载后即作为系统提示词。

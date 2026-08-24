@@ -201,6 +201,7 @@ func (m *rootModel) setApp(app *taskRunner) {
 
 func (m *rootModel) submitTask(text string) { m.onSubmit(text) }
 
+// Sink is the agent event callback (injected via input.StreamSender), forwarding agent events into the TUI event loop. It always returns true.
 // Sink 是 agent 事件回调（经 input.StreamSender 注入）：把 agent 事件转发进 TUI 事件循环。
 func (m *rootModel) Sink(ev *types.Event) bool {
 	if m.rt != nil {
@@ -209,11 +210,14 @@ func (m *rootModel) Sink(ev *types.Event) bool {
 	return true
 }
 
+// Init returns a tea.Cmd that batches the startup commands of the child components.
 // Init 合并子组件启动命令。
 func (m *rootModel) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Init(), m.toast.Init())
 }
 
+// Update handles a bubbletea message, dispatching it to the matching sub-handler and returning the updated model and follow-up command.
+// Update 处理 bubbletea 消息：按消息类型分发到对应子处理，返回更新后的模型与后续命令。
 func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:

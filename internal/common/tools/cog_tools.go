@@ -26,11 +26,15 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/collect"
 )
 
+// ProbeCollector provides directed probe collection (implemented by
+// l0.Engine; tests can inject a fake).
 // ProbeCollector 定向采集能力（l0.Engine 实现；测试可注入 fake）。
 type ProbeCollector interface {
 	CollectProbes(ctx context.Context, ms []Metric, factIDs []string) (*Snapshot, error)
 }
 
+// CollectProbeTool returns the collect_probe tool for directed deterministic
+// collection of the specified probes.
 // CollectProbeTool 定向采集工具：大脑/助手缺证据时请求确定性采集
 // 指定探针（listen_ports/suid_files/… 或 all）。
 func CollectProbeTool(pc ProbeCollector) kernel.Tool {
@@ -157,6 +161,8 @@ const collectProbePerProbeCap = 8 << 10
 // 路径批量预算同量级，防多探针/多主机输出挤爆上下文窗口）。
 const collectProbeTotalCap = 64 << 10
 
+// RecallTool returns the recall tool (assistant edition) that searches the
+// experience store and host dossiers.
 // RecallTool 经验检索工具（助手版）：查经验库 + 主机档案。
 func RecallTool(mem *Memory) kernel.Tool {
 	return tool.MustToolFromFunc(
@@ -186,6 +192,8 @@ func RecallTool(mem *Memory) kernel.Tool {
 	)
 }
 
+// UpdateDesiredTool returns the update_desired tool that declares or
+// revokes expected states, teaching the assistant about the environment.
 // UpdateDesiredTool 期望状态声明工具：操作员教助手认识环境。
 // action=add/remove；kind=port/service/user/no_port/no_user/no_suid/
 // no_world_writable；value=对象（端口数字/服务名/用户名/路径）。

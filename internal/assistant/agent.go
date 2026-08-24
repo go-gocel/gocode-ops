@@ -25,6 +25,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/workspace"
 )
 
+// AgentName identifies the Linux operations agent.
 // AgentName 标识 Linux 运维 agent。
 const AgentName = "gocode-ops"
 
@@ -33,6 +34,7 @@ const AgentName = "gocode-ops"
 // （日志分析、批量巡检）被步数截断。
 const maxLoopSteps = 1 << 30
 
+// NewAgent creates a ReAct agent for the Linux operations domain with the default interactive-assistant assembly.
 // NewAgent 创建 Linux 运维领域的 ReAct agent（交互式运维助手默认装配）。
 //
 // 参数：
@@ -57,12 +59,14 @@ func NewAgent(llm kernel.Model, workDir, host string, operator model.Operator, p
 	return newAgent(llm, workDir, host, operator, policy, remote.NewSSHExecutor(remote.RemoteConfig{InventoryPath: invPath}), invPath, nil)
 }
 
+// NewAgentWithRemote is the same as NewAgent but uses the caller-provided remote executor.
 // NewAgentWithRemote 与 NewAgent 相同，但使用调用方提供的远程执行器
 // （如 NewSSHExecutor 配 OnProgress 实现逐台流式回传，或测试注入 fake）。
 func NewAgentWithRemote(llm kernel.Model, workDir, host string, operator model.Operator, policy guard.Policy, rmt remote.RemoteExecutor, invPath string) (*agents.App, error) {
 	return newAgent(llm, workDir, host, operator, policy, rmt, invPath, nil)
 }
 
+// NewAgentWithL0 is the same as NewAgentWithRemote and additionally injects the l0_snapshot tool.
 // NewAgentWithL0 与 NewAgentWithRemote 相同，并注入 l0_snapshot 工具
 // （公用内核快检，模型按需触发）。l0s 为 nil 时不追加该工具。
 func NewAgentWithL0(llm kernel.Model, workDir, host string, operator model.Operator, policy guard.Policy, rmt remote.RemoteExecutor, invPath string, l0s model.L0Snapshooter) (*agents.App, error) {

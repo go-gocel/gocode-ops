@@ -13,6 +13,8 @@ import (
 	"github.com/go-gocel/gocel-core/core/tool"
 )
 
+// ReportRenderer renders the report (implemented by *l0.Engine; interfaced
+// for test injection).
 // ReportRenderer 报告渲染接口（*l0.Engine 实现；接口化便于测试注入）。
 type ReportRenderer interface {
 	// RenderReport 渲染实时报告到工作目录 report.md。
@@ -21,6 +23,8 @@ type ReportRenderer interface {
 	ReportPath() string
 }
 
+// ReportTool returns the generate_report tool that renders report.md and
+// returns its path.
 // ReportTool 返回 generate_report 工具：渲染工作目录 report.md 并返回
 // 路径。仅当操作员明确要求生成报告时由模型调用（"出个报告"/"生成巡检
 // 报告"等）；日常问答与处置任务不调用本工具。

@@ -29,16 +29,33 @@ import (
 // 不复制定义。
 
 type (
+	// Phase is a package-level alias for model.Phase.
+	// Phase 是 model.Phase 的适配层别名。
 	Phase       = model.Phase
+	// Finding is a package-level alias for model.Finding.
+	// Finding 是 model.Finding 的适配层别名。
 	Finding     = model.Finding
+	// PhaseLog is a package-level alias for workspace.PhaseLog.
+	// PhaseLog 是 workspace.PhaseLog 的适配层别名。
 	PhaseLog    = workspace.PhaseLog
+	// EnvInfo is a package-level alias for model.EnvInfo.
+	// EnvInfo 是 model.EnvInfo 的适配层别名。
 	EnvInfo     = model.EnvInfo
+	// Env is a package-level alias for env.Env.
+	// Env 是 env.Env 的适配层别名。
 	Env         = env.Env
+	// Action is a package-level alias for model.Action.
+	// Action 是 model.Action 的适配层别名。
 	Action      = model.Action
+	// Session is a package-level alias for session.Session.
+	// Session 是 session.Session 的适配层别名。
 	Session     = session.Session
+	// LenientBool is a package-level alias for model.LenientBool.
+	// LenientBool 是 model.LenientBool 的适配层别名。
 	LenientBool = model.LenientBool
 )
 
+// PhaseSurvey is the survey phase of the engine's protocol skeleton.
 // 模型阶段常量：ops 只保留 PhaseRescan（报告层合并依赖），其余阶段是
 // 引擎协议骨架（survey/deepdive/respond）专属。
 const (
@@ -54,6 +71,8 @@ const (
 	FindingDismissed = model.FindingDismissed
 )
 
+// PhaseSummary is the structured summary (JSON contract) produced at the end
+// of each phase.
 // PhaseSummary 每个阶段结束时的结构化小结（JSON 契约）。
 //
 // 引擎解析小结并校验契约（如 survey 必须声明 covered 非空），

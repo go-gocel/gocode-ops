@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+// ParseBusinessPorts parses business_ports probe output (line format
+// <port>|<process>) into a port-to-process map, skipping malformed lines.
 // ParseBusinessPorts 解析 business_ports 探针输出（行格式 <端口>|<进程>）
 // 为 端口→进程 映射。畸形行跳过。
 func ParseBusinessPorts(raw string) map[string]string {
@@ -29,6 +31,9 @@ func ParseBusinessPorts(raw string) map[string]string {
 	return out
 }
 
+// BusinessDiff compares business ports before and after remediation and
+// returns the ports that disappeared without being a remediation target
+// (a business-outage incident, line format <port>|<process>).
 // BusinessDiff 处置前/后业务端口对比：返回"非处置目标却消失"的端口
 // （业务中断事故，行格式 <端口>|<进程>）。targetCmds 是已执行动作的
 // 命令文本集合——命令提及该端口号或进程名 = 处置目标（如杀后门

@@ -15,9 +15,11 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// AuditFileName is the audit log file name for ops operations (JSON lines).
 // AuditFileName 是运维操作审计文件（JSON lines）。
 const AuditFileName = "ops-audit.log"
 
+// AuditEvent is a single audit record.
 // AuditEvent 是一条审计记录。
 type AuditEvent struct {
 	Time   time.Time `json:"time"`
@@ -40,12 +42,14 @@ type AuditEvent struct {
 	ActionName string `json:"action_name,omitempty"`
 }
 
+// AuditLog appends audit events to a JSON lines file, safe for concurrent use.
 // AuditLog 把审计事件追加写入 JSON lines 文件，并发安全。
 type AuditLog struct {
 	mu   sync.Mutex
 	path string
 }
 
+// NewAuditLog creates the audit log at <workDir>/.gocode/ops-audit.log.
 // NewAuditLog 在 <workDir>/.gocode/ops-audit.log 创建审计日志（与状态
 // json、配置清单同目录）。
 func NewAuditLog(workDir string) (*AuditLog, error) {
@@ -60,6 +64,7 @@ func NewAuditLog(workDir string) (*AuditLog, error) {
 	return &AuditLog{path: path}, nil
 }
 
+// Path returns the audit file path.
 // Path 返回审计文件路径。
 func (a *AuditLog) Path() string { return a.path }
 
@@ -67,6 +72,8 @@ func (a *AuditLog) Path() string { return a.path }
 // （长驻进程/引擎长跑不无限增长，P3 修复）。10MB ≈ 数万条审计记录。
 const auditRotateSize = 10 << 20
 
+// Write appends one audit record; audit failures only skip tracing and never
+// block the agent.
 // Write 追加一条审计记录。审计失败只影响留痕，不阻断 agent。
 func (a *AuditLog) Write(ev AuditEvent) error {
 	if ev.Time.IsZero() {
@@ -111,6 +118,7 @@ func (a *AuditLog) Write(ev AuditEvent) error {
 	return nil
 }
 
+// AuditModule records every tool call into the audit log.
 // AuditModule 记录每一次工具调用到审计日志。
 //
 // 截断上限取日志留痕与防刷屏的平衡：args 2000 / result 4000 / error
@@ -120,6 +128,7 @@ type AuditModule struct {
 	Log *AuditLog
 }
 
+// Register hooks AfterToolCall to record tool calls.
 // Register 挂接 AfterToolCall 钩子。
 func (m *AuditModule) Register(rt kernel.HookRegistrar) {
 	rt.OnToolResult(m.onToolResult)
@@ -142,6 +151,7 @@ func (m *AuditModule) onToolResult(ctx context.Context, info *kernel.ToolCallInf
 	return ctx, info, nil
 }
 
+// IsToolError reports whether the tool result content is a failure payload.
 // IsToolError 判断工具结果内容是否为失败负载。gocel 约定工具执行失败
 // （守卫拦截/执行报错/结果拒绝）时结果以 {"error": ...} 开头；事件流
 // 不携带 error 字段，界面与日志用内容前缀区分成败。
@@ -174,6 +184,7 @@ var (
 	auditEnvSecretRe = regexp.MustCompile(`(?i)\b(PGPASSWORD|MYSQL_PWD|MYSQL_ROOT_PASSWORD|REDIS_PASSWORD|MONGODB_URI|DATABASE_URL|AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID|GITHUB_TOKEN|GITLAB_TOKEN|NPM_TOKEN|DOCKER_PASSWORD|KUBECONFIG|KUBERNETES_SERVICE_ACCOUNT_TOKEN)\s*=\s*\S+`)
 )
 
+// SanitizeArgs redacts plaintext credentials in audit args.
 // SanitizeArgs 脱敏审计参数中的明文凭证：URL 内嵌 user:pass、密码/令牌
 // 参数与认证头后值替换为 ***——审计文件仅属主可读是纵深，命令原文本身
 // 不该带凭证（R14 教训：echo 注释里的 /root/.ssh 都会进审计）。

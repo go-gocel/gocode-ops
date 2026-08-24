@@ -15,6 +15,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// Handoff summarizes the engine's leftover state for the interactive assistant.
 // Handoff 引擎遗留状态摘要（接力协同输入面）。
 type Handoff struct {
 	// Open 未处置项摘要（pending 待裁决 / confirmed 未修复）。
@@ -23,11 +24,13 @@ type Handoff struct {
 	WorkOrders []string `json:"work_orders,omitempty"`
 }
 
+// HasWork reports whether there is leftover work to take over.
 // HasWork 是否存在可接管的遗留项。
 func (h *Handoff) HasWork() bool {
 	return len(h.Open) > 0 || len(h.WorkOrders) > 0
 }
 
+// String renders a compact summary for assistant context injection.
 // String 紧凑摘要（注入助手上下文用，控制长度）。
 func (h *Handoff) String() string {
 	var b strings.Builder
@@ -46,6 +49,7 @@ func (h *Handoff) String() string {
 	return b.String()
 }
 
+// LoadHandoff reads the engine's leftover state from the workspace, tolerating missing or corrupt files.
 // LoadHandoff 读取工作区引擎遗留状态。容错：findings.json 不存在/
 // 损坏/无遗留 → 空 Handoff（不阻塞助手启动）。工作目录与引擎同
 // 目录时才是接力场景；助手独立使用（无引擎遗留）时为空。

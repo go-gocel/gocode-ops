@@ -4,6 +4,9 @@ import "strings"
 
 // metrics_security.go — 安全域指标与安全事实探针（SSH 策略/权限/可疑行为/持久化痕迹）。
 
+// SecurityMetrics returns the security-domain numeric metric probes,
+// such as SUID file count and SSH root login policy.
+// SecurityMetrics 返回安全域数值指标探针清单（SSH root 直登策略/SUID 文件计数等）。
 func SecurityMetrics(env *Env) []Metric {
 	list := []Metric{
 		{ID: "suid_files", Name: "SUID 文件数", Warn: 1, Crit: 50,
@@ -52,6 +55,9 @@ func parseSSHRootLogin(out string) (map[string]float64, error) {
 	return map[string]float64{"count": 0}, nil
 }
 
+// SecurityFacts returns the exported security-fact probe list, referenced
+// by the cognitive tool collect_probe and prompt vocabularies; the single
+// source remains securityFacts.
 // securityFacts 安全域事实枚举探针（机制 1：事实保障——大脑必须看见）。
 //
 // 每轮 L0 确定性采集，原始数据同时走两条管道：

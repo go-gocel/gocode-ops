@@ -2,14 +2,20 @@ package model
 
 import "time"
 
+// Severity is the severity of an anomaly.
 // Severity 异常严重度。
 type Severity string
 
+// SevWarn is the warning severity.
+// SevCrit is the critical severity.
+// 严重度常量：SevWarn=警告（warn），SevCrit=严重（critical）。
 const (
 	SevWarn Severity = "warn"
 	SevCrit Severity = "critical"
 )
 
+// Action is the execution record of one remediation action, written
+// after the respond phase runs its three-step set.
 // Action 一次处置动作的执行记录（respond 阶段三件套执行后写入）。
 type Action struct {
 	Name      string `json:"name"`

@@ -5,12 +5,24 @@ import (
 	"strings"
 )
 
+// FactClass classifies probe cost tiers, the cost prior of the probe
+// spec: routine rounds only collect S0/S1, S2 is triggered by
+// board/refresh/signal, and S3 is explicit drilldown.
 // FactClass 探针成本分层（design-v2.md §二：探针规格书的成本先验）。
 // 例行轮只采 S0/S1；S2 上板/刷新/信号触发；S3 显式下钻。
 // 写不出代价上界的探针不允许上线——全盘枚举（find / -xdev 形态）无界，
 // 只允许作为 S3 下钻（显式调用、带远端 timeout 包裹、partial 语义）。
 type FactClass int
 
+// FactSignal is the S0 cost class: O(1), collected every round.
+// FactTargeted is the S1 cost class: bounded (targeted dirs or fixed
+// files), collected every round.
+// FactEnumerate is the S2 cost class: board/refresh/signal-triggered
+// (reserved).
+// FactDrilldown is the S3 cost class: explicit drilldown
+// (collect_probe, may be partial).
+// 成本分层：S0 信号级（O(1)，每轮）；S1 定点（有界目录/固定文件，每轮）；
+// S2 枚举（上板/刷新/信号触发，预留）；S3 下钻（显式 collect_probe，可 partial）。
 const (
 	FactSignal    FactClass = iota // S0: O(1)，每轮
 	FactTargeted                   // S1: 有界（定点目录/固定文件），每轮
@@ -18,6 +30,7 @@ const (
 	FactDrilldown                  // S3: 下钻（显式 collect_probe，可 partial）
 )
 
+// Metric is a single parseable inspection metric.
 // Metric 一项可解析的巡检指标。
 //
 // 设计原则：命令只读；输出解析全部用 Go 实现（不依赖 grep/sed/awk，
@@ -48,6 +61,8 @@ type Metric struct {
 // 格式与片段标记（__M_...__）互斥，不会被 splitFragments 误切。
 const probeIncompleteMark = "__PROBE_INCOMPLETE__"
 
+// BoundedProbe wraps a potentially unbounded probe command with a cost
+// guard: a remote timeout wrapper plus a completion sentinel.
 // BoundedProbe 给可能无界的探针命令加成本护栏：远端 timeout 包裹 +
 // 完成哨兵。timeout 直接子进程即探针命令本身（管道首段），超时整条
 // 命令被杀，不留孤儿（碎片内无中间 sh）；异常退出（超时/失败）输出
@@ -71,6 +86,8 @@ func BoundedProbe(cmd string, secs int) string {
 // fragmentMark 生成形如 __M_<id>__ 的输出标记。
 func fragmentMark(id string) string { return "__M_" + id + "__" }
 
+// Metrics returns the inspection checklist for the environment; all
+// commands are read-only.
 // Metrics 按环境返回检查清单（全部只读命令）。
 func Metrics(env *Env) []Metric {
 	list := []Metric{

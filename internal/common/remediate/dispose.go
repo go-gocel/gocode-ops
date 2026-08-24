@@ -20,6 +20,8 @@ func minDur(a, b time.Duration) time.Duration {
 
 // ── 处置机制（docs/design-v2.md §三）：三态去向契约的执行侧实现 ──────
 
+// DisposeClassFor assigns a change class to a disposition based on the
+// finding signal, defaulting to config-level for unknown signals.
 // DisposeClassFor 按 finding 信号给处置去向定变更分级（最小破坏序的
 // 校验依据；未知信号默认配置级）。
 //
@@ -50,6 +52,9 @@ func DisposeClassFor(f *model.Finding) model.ChangeClass {
 	}
 }
 
+// WorkOrderFor builds a manual work order from the finding, packaging
+// root cause, confidence, impact, suggested commands, steps, verification
+// and rollback.
 // WorkOrderFor 由 finding 构造人工工单（证据包：根因/置信度/影响面/
 // 建议命令/步骤/验证/回滚——处置机制 manual_workorder 的产物）。
 func WorkOrderFor(f *model.Finding, why string, cmds []string) *model.WorkOrder {
@@ -75,6 +80,9 @@ func WorkOrderFor(f *model.Finding, why string, cmds []string) *model.WorkOrder 
 	return wo
 }
 
+// VerifiedEvidence builds functional verification evidence from the
+// executed actions and the plan, binding each verified action to its
+// verify command, recovery criterion and actual output.
 // VerifiedEvidence 由处置动作与方案构造功能验证证据（✓ 的绑定依据）：
 // 每个验证通过的动作对应一条证据——verify 命令 + 恢复判据 + 实际输出。
 func VerifiedEvidence(p *Plan, acts []model.Action) []model.VerificationEvidence {
@@ -106,6 +114,10 @@ func VerifiedEvidence(p *Plan, acts []model.Action) []model.VerificationEvidence
 	return ev
 }
 
+// EnsureWorkOrderAtLimit guarantees a tri-state disposition when the
+// remediation attempt limit is reached without success, upgrading to a
+// manual work order instead of staying silent; existing dispositions and
+// fixed findings are never overwritten.
 // EnsureWorkOrderAtLimit 处置尝试达上限仍未处置时，保证 finding 有三态
 // 去向（自动处置失败/无方案 → 升级人工工单，不静默、不降级）。已在途
 // 有去向（工单/接受风险）或已修复则不覆盖。

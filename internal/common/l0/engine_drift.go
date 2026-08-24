@@ -210,6 +210,7 @@ func formatDiffLines(lines []string) string {
 // pathTokenRe 提取命令/片段文本中的路径 token（/ 开头、含常规路径字符）。
 var pathTokenRe = regexp.MustCompile(`/[A-Za-z0-9_][A-Za-z0-9_./*-]*`)
 
+// PathTokens extracts the path tokens from a text (shared by kernel drift attribution and engine evidence matching).
 // PathTokens 提取文本中的路径 token 列表（公用内核漂移归属与
 // 引擎证据对应校验共用）。
 func PathTokens(s string) []string {

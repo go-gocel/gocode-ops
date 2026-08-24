@@ -82,6 +82,8 @@ func (m *rootModel) toastLines() int {
 // fixedRows 固定占用行数：2(header) + 1(分隔) + 1(分隔) + 1(hint) + 4(两行输入框)。
 const fixedRows = 9
 
+// View renders the complete TUI layout (header, toasts, main area, hint and input) as a single string.
+// View 渲染完整 TUI 界面：顶部信息条、通知、主区（对话/帮助/标签页）、快捷键提示行与两行输入框，返回整屏字符串。
 func (m *rootModel) View() string {
 	if m.w == 0 {
 		return "loading…"

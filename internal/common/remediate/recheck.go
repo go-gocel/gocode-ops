@@ -12,6 +12,8 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/probe"
 )
 
+// L0 is the recheck dependency interface: post-remediation recheck needs
+// signal-directed re-collection, with SignalProbePlan as the single source.
 // L0 复检依赖接口：处置后复检需按信号定向重采（单一来源 SignalProbePlan）。
 // *l0.Engine 实现本接口（Env/CollectProbes）。
 type L0 interface {
@@ -19,6 +21,9 @@ type L0 interface {
 	CollectProbes(ctx context.Context, ms []probe.Metric, factIDs []string) (*probe.Snapshot, error)
 }
 
+// Rechecker performs deterministic post-remediation recheck: the model's
+// verify mark does not count, so it re-collects and re-judges; a clue that
+// still exists means the finding is not remediated.
 // Rechecker 处置后确定性复检：模型 verify ✓ 不算数——重新采集并重新
 // 判定，线索仍存在即未处置（Key 精确到对象）。
 type Rechecker struct {
@@ -34,6 +39,8 @@ func (r *Rechecker) log(format string, args ...any) {
 	}
 }
 
+// Recheck deterministically re-checks remediation by re-collecting probes
+// once per host and re-judging each verified finding.
 // Recheck 处置后确定性复检（按主机批量采集一次）：
 // R20 实测：sudoers 万能行删除动作 verify ✓ 但 sync-ops 对象未处置——
 // 假 ✓ 类缺口在确定性层收口。处置已使重探针缓存失效（InvalidateFactCache），
@@ -235,6 +242,8 @@ func hostMetricFor(snap *probe.Snapshot, host string) *probe.HostMetric {
 	return nil
 }
 
+// MarkRemediated finalizes a successfully remediated finding: it records
+// the completion time and compresses suggested fixes.
 // MarkRemediated 处置成功收口：记录处置完成时间（处置时间线指标）并
 // 压缩修复建议（成功项建议价值趋零，findings.json 体积主要来自
 // suggested_fix 全文——报告未处置区才展示全文）。

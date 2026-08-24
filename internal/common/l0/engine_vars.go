@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// EngineTemplateVars builds the template variable dictionary (workdir/hosts/host) from the engine config.
+// EngineTemplateVars 由引擎配置构造模板变量字典（workdir/hosts/host；
+// 主机清单为空时回退为本机显示名）。
 func EngineTemplateVars(cfg EngineConfig) map[string]string {
 	targets := cfg.Hosts
 	if len(targets) == 0 {
@@ -38,6 +41,7 @@ func cacheAgeNote(hm *HostMetric) string {
 // KeyNote finding 对象子键标注（漂移源/违规对象——排查"哪条线索"用，
 // 引擎日志与底座日志共用同一格式）。
 
+// TemplateVars computes the template variables for the {{...}} rendering of prompt override files and AGENTS.md.
 // TemplateVars 计算模板变量（提示词覆盖文件 / AGENTS.md 的 {{...}} 渲染）：
 // workdir=工作目录、hosts=巡检目标清单（逗号连接，无清单时为本机显示名）、
 // host=本机显示名。invPath 为远程主机清单路径（可为空）。

@@ -147,6 +147,7 @@ func (e *sshExecutor) dropClient(h Host) {
 	e.mu.Unlock()
 }
 
+// CloseAll closes all reused connections.
 // CloseAll 关闭全部复用连接（引擎结束调用）。
 func (e *sshExecutor) CloseAll() {
 	e.mu.Lock()
@@ -168,6 +169,7 @@ func newSSHExecutor(cfg RemoteConfig) *sshExecutor {
 	return &sshExecutor{cfg: cfg}
 }
 
+// NewSSHExecutor returns the real SSH/SFTP remote executor.
 // NewSSHExecutor 返回真实的 SSH/SFTP 远程执行器（NewAgentWithRemote 配合
 // 使用）；OnProgress 在命令输出块与传输进度时实时回调。
 func NewSSHExecutor(cfg RemoteConfig) RemoteExecutor {
@@ -280,6 +282,7 @@ func (e *sshExecutor) resolveHosts(inv *Inventory, aliases []string) ([]Host, er
 	return out, nil
 }
 
+// Resolve returns the real host names for the given aliases (including "all").
 // Resolve 返回别名对应的真实主机名（含 "all" 展开）。
 func (e *sshExecutor) Resolve(aliases []string) ([]string, error) {
 	inv, err := e.loadInventory()
@@ -297,12 +300,15 @@ func (e *sshExecutor) Resolve(aliases []string) ([]string, error) {
 	return names, nil
 }
 
+// RemoteCopier is the executor interface supporting remote-to-remote copy.
 // RemoteCopier 支持远端→远端复制的执行器（sshExecutor 实现；fake 可
 // 不实现——工具层报“不支持”引导模型用下载+上传双程）。
 type RemoteCopier interface {
 	Copy(ctx context.Context, sourceHost, sourcePath string, targetHosts []string, targetPath string) (string, error)
 }
 
+// Copy copies files or directories from a source host to target hosts
+// through a local SFTP round-trip.
 // Copy 远端到远端复制：本机 SFTP 双程中转（下载到临时目录再上传），
 // 凭证不出本机——scp/rsync 被守卫硬拦截的场景（集群间同步、配置分发）
 // 用本通道。临时文件用完即删。
@@ -369,6 +375,7 @@ func (e *sshExecutor) Copy(ctx context.Context, sourceHost, sourcePath string, t
 	return out, nil
 }
 
+// ConnFacts returns connection facts for the hosts of the given aliases.
 // ConnFacts 返回别名对应主机的连接事实（自影响审查用）。
 // 凭据本身不外传，只给通道判定所需的用户/认证方式/管理端口。
 // 地址解析失败时端口回退 22（SSH 默认）。

@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// ShellSpec is the local shell execution spec: a command name plus an argument prefix.
 // ShellSpec 是本地 shell 执行规格：命令名 + 执行参数前缀。
 // Args 缺省为 ["-c"]（POSIX 语义：Name -c <command>）。
 type ShellSpec struct {
@@ -27,6 +28,7 @@ type ShellSpec struct {
 	Args []string `json:"args"`
 }
 
+// LocalShell returns the locally detected shell spec, cached per process after the first probe.
 // LocalShell 返回本机探测到的 shell 规格（进程内缓存，探测一次）。
 func LocalShell() ShellSpec {
 	localShellOnce.Do(func() {

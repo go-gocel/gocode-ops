@@ -37,6 +37,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/workspace"
 )
 
+// Engine is the fully autonomous operations engine.
 // Engine 全自动运维引擎。
 type Engine struct {
 	// core 公用内核（L0 快检/工作区/报告/预热）。
@@ -129,6 +130,7 @@ func (e *Engine) rechecker() *remediate.Rechecker {
 	return &remediate.Rechecker{L0: e.core, Thresholds: e.cfg.Thresholds, Logf: e.logf}
 }
 
+// NewEngine creates a fully autonomous operations engine. llm may be nil to run L0 only (debugging).
 // NewEngine 创建全自动运维引擎。llm 可为 nil：只跑 L0（调试）。
 // remote 可为 nil：仅本机。
 func NewEngine(cfg Config, llm kernel.Model, remote remote.RemoteExecutor) (*Engine, error) {
@@ -202,25 +204,32 @@ func newEngine(cfg Config, llm kernel.Model, remote remote.RemoteExecutor, env *
 
 // ── 嵌入接口（gocode-ops 托管模式：import engine 即可驱动）───────────
 
+// Core returns the shared kernel (L0 quick-scan, workspace, and report).
 // Core 返回公用内核（L0 快检/工作区/报告）。
 func (e *Engine) Core() *l0.Engine { return e.core }
 
+// WatchConverged reports whether the watch-mode convergence phase succeeded, so result.json's converged flag is not inflated by continued guarding.
 // WatchConverged 返回 watch 模式收敛阶段是否成功（评分结论如实：
 // result.json 的 converged 不因 watch 继续守护而虚报）。
 func (e *Engine) WatchConverged() bool { return e.watchConverged }
 
+// ReportPath returns the live report file path.
 // ReportPath 实时报告路径。
 func (e *Engine) ReportPath() string { return e.core.ReportPath() }
 
+// RenderReport renders the live report; the engine loop calls it every round and embedding hosts may refresh it proactively.
 // RenderReport 渲染实时报告（引擎每轮循环自动调用；嵌入方也可主动刷新）。
 func (e *Engine) RenderReport() error { return e.core.RenderReport() }
 
+// SetLogOut replaces the engine log output (TUI embedding: logs stream into the UI in real time).
 // SetLogOut 替换引擎日志输出（TUI 嵌入：日志实时进界面）。
 func (e *Engine) SetLogOut(w io.Writer) { e.core.SetLogOut(w) }
 
+// OnEvent registers a phase-event callback (tool calls, results, and failures for real-time TUI display); nil cancels it.
 // OnEvent 注册阶段事件回调（工具调用/结果/失败——TUI 实时展示）；nil 取消。
 func (e *Engine) OnEvent(fn func(*types.Event)) { e.onEvent = fn }
 
+// Logf writes an engine log line through the same output channel as the shared kernel.
 // Logf 引擎日志（与公用内核同一输出通道）。
 func (e *Engine) Logf(format string, args ...any) { e.core.Logf(format, args...) }
 
@@ -235,6 +244,7 @@ func (e *Engine) logf(format string, args ...any) {
 // ws 薄封装：引擎循环代码原样访问共享工作区。
 func (e *Engine) ws() *workspace.Workspace { return e.core.Workspace() }
 
+// Warmup runs one warm-up L0 quick-scan round so the first task's snapshot returns instantly while the full rescan finishes in the background.
 // Warmup 预热一轮 L0 快检（嵌入方在启动后异步调用：重探针全盘扫描
 // 在后台完成，首个任务的快检即时返回）。
 func (e *Engine) Warmup(ctx context.Context) []*model.Finding { return e.core.Warmup(ctx) }

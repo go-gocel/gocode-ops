@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// RenderReport renders the real-time inspection report in markdown.
 // RenderReport 渲染实时报告（markdown）。报告由工作区（环境画像/三态发现/
 // 基线/阶段记录）渲染，任何时刻调用都得到完整结果——事件发生时调用即
 // 实时更新。分区设计对应报告关注点：确认故障 / 已排查（防误报）/ 待查 /
@@ -20,6 +21,7 @@ func RenderReport(ws *Workspace, startedAt time.Time) string {
 	return renderReport(ws, startedAt, false)
 }
 
+// RenderReportFinal renders the final report with terminal disposition assertions and a run conclusion.
 // RenderReportFinal 终态报告：与 RenderReport 相同，但按终态断言处置
 // 不变量（confirmed 去向闭合——运行被取消/超时/未收敛时必然触发横幅，
 // 如实呈现"未完成"），并追加运行结论段。收敛完成的运行无违规、无横幅。

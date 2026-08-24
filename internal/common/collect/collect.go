@@ -11,6 +11,7 @@ import (
 // maxCollectOut 单主机快检原始输出截断上限（防止异常主机刷爆内存）。
 const maxCollectOut = 128 << 10
 
+// Collector executes check lists and parses them into a structured snapshot.
 // Collector 负责执行检查清单并解析为结构化快照。本地与远程共用同一套
 // 检查逻辑；CPU 使用率通过 /proc/stat 两次采样的增量计算（容器/裸机通用）。
 type Collector struct {
@@ -40,7 +41,8 @@ type cachedFact struct {
 	at  time.Time
 }
 
-// newCollector 创建采集器。
+// NewCollector creates a collector.
+// NewCollector 创建采集器。
 func NewCollector(cfg EngineConfig, env *Env, remote RemoteExecutor) *Collector {
 	return &Collector{cfg: cfg, env: env, remote: remote, prevCPU: map[string]*cpuStat{}, factCache: map[string]map[string]cachedFact{}}
 }
@@ -62,14 +64,18 @@ func heavyFactIDs() map[string]bool {
 	}
 }
 
-// factCacheStats 返回最近一轮采集的重探针缓存统计（命中/总数，日志用）。
+// FactCacheStats returns heavy-probe cache statistics (hits/total) of the
+// latest round, for logging.
+// FactCacheStats 返回最近一轮采集的重探针缓存统计（命中/总数，日志用）。
 func (c *Collector) FactCacheStats() (hits, total int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.cacheHits, c.cacheTotal
 }
 
-// invalidateFactCache 失效指定主机的重探针缓存（处置执行后调用）：
+// InvalidateFactCache invalidates the heavy-probe cache of the given host
+// (call after remediation).
+// InvalidateFactCache 失效指定主机的重探针缓存（处置执行后调用）：
 // 复检必须实采验证对象确实消失，不能复用处置前 TTL 内的旧输出——
 // 否则“已删除对象仍命中缓存”会让复检误判未处置（被迫跳过复检）。
 func (c *Collector) InvalidateFactCache(host string) {
@@ -82,11 +88,15 @@ func (c *Collector) InvalidateFactCache(host string) {
 // 也按上限排队采集，不产生 per-host 无界 goroutine 风暴）。
 const maxCollectParallel = 8
 
+// Collect collects all target hosts in parallel (local + remote) and returns
+// a structured snapshot.
 // Collect 并行采集全部目标主机（本地 + 远程），返回结构化快照。
 func (c *Collector) Collect(ctx context.Context) (*Snapshot, error) {
 	return c.CollectMetrics(ctx, Metrics(c.env))
 }
 
+// CollectMetrics collects all targets with the given probe list (custom lists
+// used by the Security fallback).
 // CollectMetrics 按给定探针清单采集全部目标（Security 兜底用自定义清单）。
 func (c *Collector) CollectMetrics(ctx context.Context, ms []Metric) (*Snapshot, error) {
 	targets := c.Targets()
@@ -117,6 +127,8 @@ func (c *Collector) CollectMetrics(ctx context.Context, ms []Metric) (*Snapshot,
 	return &Snapshot{At: time.Now().UTC(), Hosts: results}, nil
 }
 
+// CollectProbes performs targeted collection of the given metrics and
+// security fact probes.
 // CollectProbes 定向采集：只采集指定指标与安全事实探针（处置后确定性
 // 复检用——比全量快检轻量一个数量级：不含状态快照、不含未涉及的
 // 重探针全盘扫描）。factIDs 为空切片=不采集任何事实；重探针（如
@@ -274,7 +286,9 @@ func (c *Collector) coverageFor(err error, inCmd, incomplete, reused map[string]
 	return cover
 }
 
-// targets 返回目标主机列表：本机（LocalHost）在前，远程别名在后。
+// Targets returns the target host list: the local host first, then remote
+// aliases.
+// Targets 返回目标主机列表：本机（LocalHost）在前，远程别名在后。
 func (c *Collector) Targets() []string {
 	var t []string
 	if c.cfg.Local {
@@ -294,5 +308,7 @@ func (c *Collector) Targets() []string {
 // BuildMetricsCommand 组装探针清单的采集命令（确定性快检；测试与
 // 全自动运维引擎复检共用）。
 
+// Env returns the collection environment (used by the core engine for
+// context injection).
 // Env 返回采集环境（core 引擎注入上下文用）。
 func (c *Collector) Env() *Env { return c.env }

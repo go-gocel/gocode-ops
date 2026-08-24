@@ -4,14 +4,20 @@ import (
 	"time"
 )
 
+// Phase is a protocol phase; the type and shared phase constants live
+// here, while model-phase constants live in the autopilot package.
 // Phase 协议阶段（类型与共享阶段常量；模型阶段常量见 autopilot 包）。
 // 阶段是"流程骨架"不是"故障知识"：每个阶段内查什么、怎么查完全由
 // 模型基于现场与方法论决定；引擎只管推进、超时与安全。
 type Phase string
 
+// PhaseRescan is the rescan phase; the report layer's rescan×N merge
+// depends on this constant and the engine reuses it.
 // PhaseRescan 复扫（报告层合并 rescan×N 依赖此常量；引擎复用）。
 const PhaseRescan Phase = "rescan"
 
+// Finding is a finding with a unified structure whose three states are
+// decided by the verification loop.
 // Finding 发现（统一结构，三态由验证回路裁决）。
 type Finding struct {
 	ID         string    `json:"id"`
@@ -50,12 +56,16 @@ type Finding struct {
 	SuggestedFix []string `json:"suggested_fix,omitempty"`
 }
 
+// SourceL0 is the evidence-chain source marker for output produced by
+// the deterministic L0 probe layer.
 // 证据链来源（引擎行为层标记，merge 分层与复发重置的依据）。
 const (
 	SourceL0       = "l0"       // L0 确定性快检/探针产出
 	SourceDeepDive = "deepdive" // DeepDive 模型追查确认链
 )
 
+// FindingPending is the pending state of the verification loop: the
+// lead is not yet verified and is not treated as a fault.
 // 验证回路三态。
 const (
 	FindingPending   = "pending"   // 线索/候选：未验证，不视为故障
@@ -63,6 +73,8 @@ const (
 	FindingDismissed = "dismissed" // 已排除：进报告"已排查"区（防误报）
 )
 
+// EnvInfo is the environment profile produced by the Explore phase and
+// used by later phases and reports.
 // EnvInfo 环境画像（Explore 产出，供后续阶段与报告使用）。
 // 字段类型即契约：布尔字段必须输出 true/false——模型把布尔写成字符串
 // 会让整个阶段解析失败（解析层有 LenientBool 兜底，但契约先声明）。
@@ -80,6 +92,8 @@ type EnvInfo struct {
 	Notes      string            `json:"notes,omitempty"`
 }
 
+// NewFinding creates a pending lead; the ID is deterministically
+// completed on workspace ingestion.
 // NewFinding 创建 pending 线索。ID 由工作区入库时确定性补全
 // （workspace.AddFindings：host/signal/去重键的 fnv32 哈希）——
 // 本处不预设 ID：历史实现用 UnixNano()%100000 在此预设，低时钟

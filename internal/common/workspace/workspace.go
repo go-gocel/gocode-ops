@@ -14,6 +14,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 )
 
+// Workspace is the cross-phase shared state serving as the fact source of the protocol machine.
 // Workspace 跨阶段共享状态（协议机的事实源）：
 //
 //	env.json      — 环境画像（Explore 产出）
@@ -42,6 +43,7 @@ type Workspace struct {
 	Inventory map[string]map[string]*FactInventory `json:"fact_inventory,omitempty"`
 }
 
+// BaselinePoint is the aggregated value of one L0 baseline round.
 // BaselinePoint 一轮 L0 基线的聚合值。
 type BaselinePoint struct {
 	At    time.Time                     `json:"at"`
@@ -51,6 +53,7 @@ type BaselinePoint struct {
 	State map[string]map[string]string `json:"state,omitempty"`
 }
 
+// PhaseLog records one phase execution.
 // PhaseLog 一次阶段执行记录。
 type PhaseLog struct {
 	Phase    Phase         `json:"phase"`
@@ -62,6 +65,7 @@ type PhaseLog struct {
 	Skipped  []string      `json:"skipped,omitempty"` // 无法检查的项及原因（如实交代）
 }
 
+// NewWorkspace creates or loads a workspace rooted at dir.
 // NewWorkspace 创建/加载工作区。状态 json 统一落盘在 dir/.gocode/（与
 // 配置清单同目录），工作目录根只留报告等可见产出。
 func NewWorkspace(dir string) (*Workspace, error) {
@@ -76,6 +80,7 @@ func NewWorkspace(dir string) (*Workspace, error) {
 	return w, nil
 }
 
+// Dir returns the workspace directory.
 // Dir 工作区目录。
 func (w *Workspace) Dir() string { return w.dir }
 
@@ -109,6 +114,8 @@ func (w *Workspace) save(name string, v any) error {
 	return fsutil.WriteFileAtomic(filepath.Join(w.stateDir, name), data, 0o644)
 }
 
+// SetEnv stores the environment profile and persists it to env.json.
+// SetEnv 保存环境画像并落盘 env.json。
 func (w *Workspace) SetEnv(env *EnvInfo) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -116,6 +123,7 @@ func (w *Workspace) SetEnv(env *EnvInfo) error {
 	return w.save("env.json", env)
 }
 
+// SaveFindings persists the current findings list with cross-process merging.
 // SaveFindings 落盘当前发现列表。状态不经 AddFindings 变更时使用
 // （如重裁决直接改写状态——merge 规则会拒绝非 confirmed 降级已确认项，
 // 不能走 AddFindings 落盘）。跨进程合并落盘（与引擎/助手并行安全）。
@@ -125,6 +133,7 @@ func (w *Workspace) SaveFindings() error {
 	return w.saveFindingsMerged()
 }
 
+// AddFindings merges findings from a phase summary, deduplicating and upgrading by (host, signal, key).
 // AddFindings 合并阶段小结中的发现：按归一化 (host, signal, key) 去重
 // 升级，已有 confirmed 不被降级，已有 dismissed 不复活。
 func (w *Workspace) AddFindings(list []*Finding) error {
@@ -310,6 +319,7 @@ func findingID(f *Finding) string {
 	return fmt.Sprintf("%s/%s/%d", normKey(f.Host), normKey(f.Signal), h.Sum32()%1000000)
 }
 
+// Findings returns the findings sorted by status rank.
 // dedupKeyF 归一化去重键：host/signal/key——小写并折叠空白。模型输出
 // 自由文本时同根因的 signal 大小写/空格不稳定，精确匹配会把同一根因
 // 分裂成多条重复确认；Key 非空时参与去重（同 signal 不同子键不互吞，
@@ -325,6 +335,7 @@ func (w *Workspace) Findings() []*Finding {
 	return out
 }
 
+// Confirmed returns the confirmed findings.
 // Confirmed 已确认的发现。
 func (w *Workspace) Confirmed() []*Finding {
 	var out []*Finding
@@ -336,6 +347,7 @@ func (w *Workspace) Confirmed() []*Finding {
 	return out
 }
 
+// Pending returns the unverified findings awaiting DeepDive tracing.
 // Pending 未验证的线索（DeepDive 待追查）。
 func (w *Workspace) Pending() []*Finding {
 	var out []*Finding
@@ -347,6 +359,7 @@ func (w *Workspace) Pending() []*Finding {
 	return out
 }
 
+// Dismissed returns the dismissed findings for the report's cleared section.
 // Dismissed 已排除的发现（报告"已排查"区）。
 func (w *Workspace) Dismissed() []*Finding {
 	var out []*Finding
@@ -369,6 +382,7 @@ const (
 	stateSummaryMaxConfirmed = 40       // 确认故障条数上限
 )
 
+// StateSummary renders the workspace state summary for phase task prompts.
 // StateSummary 生成工作区状态摘要（供阶段任务提示）。
 func (w *Workspace) StateSummary() string {
 	// 并发读：Env/L0Facts 与 SetEnv/SetL0Facts 的写路径对锁——助手形态

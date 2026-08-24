@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// RunWatch runs persistent watch mode: it converges once, then rescans
+// periodically.
 // RunWatch 常驻运营：先尽力收敛一次（runUntilClean），然后按
 // cfg.WatchInterval 周期重扫。返回 nil=正常退出（ctx 取消）；收敛阶段
 // 的非取消错误如实返回。watchConverged 记录收敛阶段是否成功——评分

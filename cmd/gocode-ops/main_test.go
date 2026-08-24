@@ -17,7 +17,6 @@ import (
 
 	"github.com/go-gocel/termagent/pkg/components/display"
 	"github.com/go-gocel/termagent/pkg/theme"
-	"github.com/go-gocel/termagent/testutil"
 
 	"github.com/go-gocel/gocode-ops/internal/common/model"
 	"github.com/go-gocel/gocode-ops/internal/common/remote"
@@ -125,9 +124,9 @@ func TestAskOverlay_OptionsSelect(t *testing.T) {
 	if m.ask == nil {
 		t.Fatal("ask overlay should open")
 	}
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("down"))
+	m.Update(Key("down"))
+	m.Update(Key("enter"))
 	if got := <-resp; got != "取消" {
 		t.Fatalf("answer = %q, want 取消", got)
 	}
@@ -140,7 +139,7 @@ func TestAskOverlay_EscCancels(t *testing.T) {
 	m := newTestRoot()
 	resp := make(chan string, 1)
 	m.Update(askMsg{prompt: "允许执行吗?", options: []string{"y", "n"}, resp: resp})
-	m.Update(testutil.Key("esc"))
+	m.Update(Key("esc"))
 	if got := <-resp; got != "" {
 		t.Fatalf("answer = %q, want empty on cancel", got)
 	}
@@ -154,7 +153,7 @@ func TestAskOverlay_YNDirectKeys(t *testing.T) {
 		m := newTestRoot()
 		resp := make(chan string, 1)
 		m.Update(askMsg{prompt: "允许执行吗?", options: []string{"y", "n"}, resp: resp})
-		m.Update(testutil.Key(key))
+		m.Update(Key(key))
 		if got := <-resp; got != key {
 			t.Fatalf("answer = %q, want %q", got, key)
 		}
@@ -168,7 +167,7 @@ func TestAskOverlay_YNDirectKeysWithThirdOption(t *testing.T) {
 		m := newTestRoot()
 		resp := make(chan string, 1)
 		m.Update(askMsg{prompt: "允许执行吗? [y/N/a=本会话全部放行]", options: []string{"y", "n", "a"}, resp: resp})
-		m.Update(testutil.Key(key))
+		m.Update(Key(key))
 		if got := <-resp; got != key {
 			t.Fatalf("answer = %q, want %q", got, key)
 		}
@@ -177,9 +176,9 @@ func TestAskOverlay_YNDirectKeysWithThirdOption(t *testing.T) {
 	m := newTestRoot()
 	resp := make(chan string, 1)
 	m.Update(askMsg{prompt: "允许执行吗? [y/N/a=本会话全部放行]", options: []string{"y", "n", "a"}, resp: resp})
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("down"))
+	m.Update(Key("down"))
+	m.Update(Key("enter"))
 	if got := <-resp; got != "a" {
 		t.Fatalf("answer = %q, want a", got)
 	}
@@ -192,19 +191,19 @@ func TestAskOverlay_OtherCustomInput(t *testing.T) {
 	resp := make(chan string, 1)
 	m.Update(askMsg{prompt: "选择处置方案", options: []string{"重启", "仅重载配置"}, resp: resp})
 	// 导航到末尾的"其他"入口（options 2 个 + 其他 = 3 项，down×2）
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("down"))
+	m.Update(Key("down"))
+	m.Update(Key("enter"))
 	if m.ask == nil || !m.ask.custom {
 		t.Fatal("选中其他应进入自定义输入模式")
 	}
 	// 输入补充说明（可打印字符 + 退格修正）
 	for _, r := range "改成重启并保留数据" {
-		m.Update(testutil.Key(string(r)))
+		m.Update(Key(string(r)))
 	}
-	m.Update(testutil.Key("backspace")) // 删掉最后一个字
-	m.Update(testutil.Key("据"))
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("backspace")) // 删掉最后一个字
+	m.Update(Key("据"))
+	m.Update(Key("enter"))
 	if got := <-resp; got != "改成重启并保留数据" {
 		t.Fatalf("answer = %q, want 用户原话", got)
 	}
@@ -218,17 +217,17 @@ func TestAskOverlay_CustomEscReturnsToOptions(t *testing.T) {
 	m := newTestRoot()
 	resp := make(chan string, 1)
 	m.Update(askMsg{prompt: "选择处置方案", options: []string{"重启", "取消"}, resp: resp})
-	m.Update(testutil.Key("down"))
-	m.Update(testutil.Key("down")) // 到"其他"
-	m.Update(testutil.Key("enter"))
-	m.Update(testutil.Key("输入中"))
-	m.Update(testutil.Key("esc")) // 返回选项列表
+	m.Update(Key("down"))
+	m.Update(Key("down")) // 到"其他"
+	m.Update(Key("enter"))
+	m.Update(Key("输入中"))
+	m.Update(Key("esc")) // 返回选项列表
 	if m.ask == nil || m.ask.custom {
 		t.Fatal("esc 应返回选项列表")
 	}
 	// 选项列表仍可正常选择
-	m.Update(testutil.Key("up"))
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("up"))
+	m.Update(Key("enter"))
 	if got := <-resp; got != "取消" {
 		t.Fatalf("answer = %q, want 取消", got)
 	}
@@ -238,7 +237,7 @@ func TestAskOverlay_EmptyOptionsDefaultYN(t *testing.T) {
 	m := newTestRoot()
 	resp := make(chan string, 1)
 	m.Update(askMsg{prompt: "允许执行吗?", resp: resp})
-	m.Update(testutil.Key("y"))
+	m.Update(Key("y"))
 	if got := <-resp; got != "y" {
 		t.Fatalf("answer = %q, want y (default y/n)", got)
 	}
@@ -626,11 +625,11 @@ func TestInterruptConfirm_WhileRunning(t *testing.T) {
 	m.cancel = func() { cancelled = true }
 
 	// Ctrl+C 是全局中断键：输入框聚焦时也生效（退出不依赖切焦点）
-	m.Update(testutil.Key("ctrl+c"))
+	m.Update(Key("ctrl+c"))
 	if !m.modal.IsOpen() {
 		t.Fatal("interrupt confirm modal should open while running")
 	}
-	m.Update(testutil.Key("y"))
+	m.Update(Key("y"))
 	if m.modal.IsOpen() {
 		t.Fatal("modal should close after confirming")
 	}
@@ -642,7 +641,7 @@ func TestInterruptConfirm_WhileRunning(t *testing.T) {
 func TestQuit_InputFocusedCtrlCQuits(t *testing.T) {
 	m := newTestRoot()
 	// 空闲时输入框聚焦按 Ctrl+C 直接退出
-	_, cmd := m.Update(testutil.Key("ctrl+c"))
+	_, cmd := m.Update(Key("ctrl+c"))
 	if cmd == nil {
 		t.Fatal("ctrl+c should quit while idle, even with input focused")
 	}
@@ -652,7 +651,7 @@ func TestQuit_NoQKey(t *testing.T) {
 	// q 不再绑定退出：输入框聚焦时 q 是普通字符，非输入焦点时也不退出
 	m := newTestRoot()
 	m.running = true
-	m.Update(testutil.Key("q"))
+	m.Update(Key("q"))
 	if m.quitting || m.modal.IsOpen() {
 		t.Fatal("q must never trigger quit")
 	}
@@ -661,8 +660,8 @@ func TestQuit_NoQKey(t *testing.T) {
 	}
 	// 非输入焦点（标签页）时按 q 也不退出
 	m2 := newTestRoot()
-	m2.Update(testutil.Key("tab"))
-	m2.Update(testutil.Key("q"))
+	m2.Update(Key("tab"))
+	m2.Update(Key("q"))
 	if m2.quitting || m2.modal.IsOpen() {
 		t.Fatal("q must not quit even with tabs focused")
 	}
@@ -672,7 +671,7 @@ func TestHelpOpen_CtrlCStillWorks(t *testing.T) {
 	// 帮助页打开时 Ctrl+C 不再被吞：空闲退出、运行中弹中断确认。
 	m := newTestRoot()
 	m.help = true
-	_, cmd := m.Update(testutil.Key("ctrl+c"))
+	_, cmd := m.Update(Key("ctrl+c"))
 	if cmd == nil {
 		t.Fatal("帮助页空闲时 ctrl+c 应返回退出命令")
 	}
@@ -680,7 +679,7 @@ func TestHelpOpen_CtrlCStillWorks(t *testing.T) {
 	m2 := newTestRoot()
 	m2.help = true
 	m2.running = true
-	m2.Update(testutil.Key("ctrl+c"))
+	m2.Update(Key("ctrl+c"))
 	if !m2.modal.IsOpen() {
 		t.Fatal("帮助页运行中 ctrl+c 应弹中断确认")
 	}
@@ -707,7 +706,7 @@ func TestSubmit_EnterSends(t *testing.T) {
 	m := newTestRoot()
 	m.running = true // 防 maybeStartNext 启动任务（单测无 app）
 	m.input.SetValue("巡检磁盘")
-	m.Update(testutil.Key("enter"))
+	m.Update(Key("enter"))
 	if len(m.pending) != 1 || m.pending[0] != "巡检磁盘" {
 		t.Fatalf("enter should submit task, pending = %v", m.pending)
 	}
@@ -724,7 +723,7 @@ func TestQuit_WhileAskOpenResolvesAsk(t *testing.T) {
 	resp := make(chan string, 1)
 	m.Update(askMsg{prompt: "允许执行吗?", options: []string{"y", "n"}, resp: resp})
 
-	m.Update(testutil.Key("esc")) // 取消提问
+	m.Update(Key("esc")) // 取消提问
 
 	if got := <-resp; got != "" {
 		t.Fatalf("ask answer = %q, want empty on cancel", got)
@@ -733,7 +732,7 @@ func TestQuit_WhileAskOpenResolvesAsk(t *testing.T) {
 		t.Fatal("ask overlay should close on cancel")
 	}
 	// 取消后空闲，Ctrl+C 退出
-	_, cmd := m.Update(testutil.Key("ctrl+c"))
+	_, cmd := m.Update(Key("ctrl+c"))
 	if cmd == nil {
 		t.Fatal("ctrl+c should quit after ask closed")
 	}

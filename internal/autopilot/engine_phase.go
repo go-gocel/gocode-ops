@@ -15,6 +15,7 @@ import (
 	"github.com/go-gocel/gocode-ops/internal/common/probe"
 )
 
+// RunOnce runs one round (init phases plus a single L0 loop) for debugging.
 // RunOnce 执行一轮（初始化阶段 + 一次 L0 循环），调试用。
 func (e *Engine) RunOnce(ctx context.Context) error {
 	e.core.MarkStarted()

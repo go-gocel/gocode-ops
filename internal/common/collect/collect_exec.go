@@ -37,6 +37,7 @@ func (c *Collector) run(ctx context.Context, host, cmd string, timeout time.Dura
 	return StripSectionHeader(out), nil
 }
 
+// ExecLocal executes a command on the local host and returns its collected output.
 // ExecLocal 在本地执行命令（确定性快检，见包文档豁免说明）。
 // timeout 落实为命令级超时（与远程执行一致）：≤0 时回退 30s——挂死
 // 的探针（NFS/阻塞的 journalctl 等）不得卡死整轮快检。

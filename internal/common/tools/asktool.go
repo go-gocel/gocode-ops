@@ -17,6 +17,8 @@ type askParams struct {
 	Options []string `json:"options,omitempty" description:"可选答案列表，缺省 y/n"`
 }
 
+// AskOperatorTool returns the ask_operator tool that asks the operator a
+// question and waits for an answer during task execution.
 // AskOperatorTool 返回 ask_operator 工具：在任务执行中向操作员提问并
 // 等待回答。用于补充信息、方案选择、执行前确认。无交互终端时返回错误。
 func AskOperatorTool(operator Operator) kernel.Tool {

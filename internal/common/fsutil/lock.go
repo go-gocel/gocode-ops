@@ -20,11 +20,13 @@ import (
 	"time"
 )
 
+// LockTTL is the stale-lock threshold: locks held longer than this are treated as crash leftovers and may be cleaned up.
 // LockTTL 陈旧锁判定：持有超过该时长视为崩溃残留（可清理）。
 // 60s：正常临界区毫秒级，留足挂起余量（休眠/慢盘）缩小"活锁被误判
 // 陈旧"的窗口。
 const LockTTL = 60 * time.Second
 
+// LockWait is the maximum time to wait when acquiring a lock.
 // LockWait 获取锁的最大等待时长。
 const LockWait = 5 * time.Second
 
@@ -37,6 +39,7 @@ const (
 // lockSeq 本进程锁令牌序号（同 pid 同时刻多次持锁也唯一）。
 var lockSeq atomic.Int64
 
+// FileLock acquires a cross-process file lock with blocking retries and returns a release function.
 // FileLock 获取跨进程文件锁（阻塞式重试）。返回释放函数；失败返回
 // 错误（调用方按无锁降级处理——锁是防丢更新的优化，不是正确性前提）。
 func FileLock(lockPath string) (func(), error) {
@@ -74,6 +77,7 @@ func FileLock(lockPath string) (func(), error) {
 	}
 }
 
+// FileUnlock releases the lock, deleting the lock file only when it still holds this locker's token.
 // FileUnlock 释放锁：仅当锁文件内容仍为本持锁者令牌时删除——锁已被
 // 他人接管（陈旧清理后新建）时不动，防止错删他人锁导致互斥失效。
 // 读失败（文件被并发删除等）不删除（留给 TTL 清理兜底）。
@@ -88,6 +92,7 @@ func FileUnlock(lockPath, token string) {
 	os.Remove(lockPath)
 }
 
+// WithFileLock runs fn while holding the file lock; when acquisition fails it degrades to a direct call.
 // WithFileLock 持锁执行 fn（锁获取失败时直接执行——降级不阻塞）。
 func WithFileLock(lockPath string, fn func() error) error {
 	rel, err := FileLock(lockPath)
@@ -98,6 +103,7 @@ func WithFileLock(lockPath string, fn func() error) error {
 	return fn()
 }
 
+// LockPathFor returns the lock file path for a state file (same directory, .lock suffix).
 // LockPathFor 状态文件对应的锁文件路径（同目录 .lock 后缀）。
 func LockPathFor(stateFile string) string {
 	return filepath.Join(filepath.Dir(stateFile), filepath.Base(stateFile)+".lock")

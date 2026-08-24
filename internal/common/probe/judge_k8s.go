@@ -15,6 +15,8 @@ import (
 // 名称级判定（不读取值），覆盖 Secret/ConfigMap 名称与 env 字段名。
 var k8sSensitiveRe = regexp.MustCompile(`(?i)(pass|pwd|secret|token|api_?key|access_?key|credential|private_?key|auth_?key)`)
 
+// JudgeK8sFacts performs data-driven attribution judgment and skips
+// when the corresponding data segment is absent.
 // JudgeK8sFacts 数据驱动归属判定：无对应数据段即跳过。
 func JudgeK8sFacts(hm *HostMetric) []Anomaly {
 	var out []Anomaly

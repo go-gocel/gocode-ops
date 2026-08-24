@@ -21,6 +21,7 @@ var atomicTmpSeq atomic.Int64
 // rename 重试兜底。锁按路径累积（工作区文件数有限，无泄漏问题）。
 var renameLocks sync.Map // path → *sync.Mutex
 
+// WriteFileAtomic atomically writes data to path using a unique temp file, fsync, and rename.
 // WriteFileAtomic 原子写文件：唯一 tmp 名（PID+时间戳+原子序号，防双
 // 进程同目录互截断）+ 写入后 fsync + rename（读者只会看到旧或新完整
 // 文件，不会读到半截——断电/并发下内容完整性由 rename 原子性保证）。
@@ -82,6 +83,7 @@ func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 	return nil
 }
 
+// TruncateStr truncates s to n runes and appends an ellipsis when s is longer.
 // TruncateStr 截断字符串到 n 个 rune（超长加省略号）。
 func TruncateStr(s string, n int) string {
 	r := []rune(s)

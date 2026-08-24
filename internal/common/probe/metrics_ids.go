@@ -1,5 +1,10 @@
 package probe
 
+// MetricsForIDs converts a set of probe IDs into the collection Metric
+// list (single source of numeric-metric probes: Metrics + SecurityMetrics;
+// fact probes go through the CollectProbes factIDs channel), shared by
+// deterministic post-remediation rechecks and cognitive targeted
+// collection.
 // metrics.go — 指标清单构造（单一来源：数值指标探针）。
 // MetricsForIDs 把探针 ID 集合转成采集 Metric 清单（数值指标探针
 // 单一来源：Metrics + SecurityMetrics；事实探针走 CollectProbes 的

@@ -7,6 +7,8 @@ import (
 
 // collect_cmd.go — 采集命令构建：指标→单条 shell 命令（按环境裁剪 skip/事实/状态段）。
 
+// BuildMetricsCommand builds the metric collection shell command for the target environment.
+// BuildMetricsCommand 构建采集命令：按环境把指标清单拼接为单条 shell 命令。
 func BuildMetricsCommand(env *Env, ms []Metric) string {
 	return buildMetricsCommandSkip(env, ms, nil)
 }

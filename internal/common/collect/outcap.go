@@ -28,6 +28,7 @@ func newCappedBuffer(limit int) *cappedBuffer {
 	return &cappedBuffer{remaining: limit}
 }
 
+// Write collects up to the configured byte limit from p and discards the rest without blocking the writer.
 // Write 收集 p 的前 remaining 字节，超出部分丢弃（不阻塞上游）。
 // 返回 len(p)（模拟全量写入）——io.Copy 等调用方不因截断而报错。
 func (c *cappedBuffer) Write(p []byte) (int, error) {
@@ -49,6 +50,7 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// String returns the content collected so far.
 // String 返回已收集的内容。
 func (c *cappedBuffer) String() string {
 	c.mu.Lock()
@@ -56,6 +58,7 @@ func (c *cappedBuffer) String() string {
 	return c.buf.String()
 }
 
+// Truncated reports whether truncation has occurred during collection (used to diagnose large-output commands).
 // Truncated 是否发生过截断（诊断大输出命令用）。
 func (c *cappedBuffer) Truncated() bool {
 	c.mu.Lock()

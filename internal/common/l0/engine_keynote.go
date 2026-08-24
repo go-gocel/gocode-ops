@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// KeyNote wraps a key in square brackets, returning an empty string for an empty key.
+// KeyNote 给关键提示 key 加方括号标记（空 key 返回空串）。
 func KeyNote(key string) string {
 	if key == "" {
 		return ""

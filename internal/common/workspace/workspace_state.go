@@ -13,6 +13,7 @@ const (
 	baselineMaxPts = 5000 // 文件大小护栏（每点几百字节，上限约 1-2MB）
 )
 
+// AddBaseline records one L0 baseline round, trimming to the retention window.
 // AddBaseline 记录一轮 L0 基线（时间窗口裁剪，痕迹机制的历史源）。
 func (w *Workspace) AddBaseline(pt BaselinePoint) error {
 	w.mu.Lock()
@@ -38,6 +39,7 @@ func trimBaseline(pts []BaselinePoint, now time.Time) []BaselinePoint {
 	return out
 }
 
+// Baseline returns the baseline history.
 // Baseline 返回基线历史。
 func (w *Workspace) Baseline() []BaselinePoint {
 	w.mu.Lock()
@@ -51,6 +53,7 @@ func (w *Workspace) Baseline() []BaselinePoint {
 // 每 30min 一条，200 条约覆盖 4 天，诊断足够。
 const maxPhaseLogs = 200
 
+// AddPhaseLog records a phase execution.
 // AddPhaseLog 记录阶段执行。
 func (w *Workspace) AddPhaseLog(log PhaseLog) error {
 	w.mu.Lock()
@@ -62,6 +65,7 @@ func (w *Workspace) AddPhaseLog(log PhaseLog) error {
 	return w.save("phases.json", w.PhaseLogs)
 }
 
+// Phases returns the phase execution records.
 // Phases 返回阶段执行记录。
 func (w *Workspace) Phases() []PhaseLog {
 	w.mu.Lock()
@@ -76,6 +80,7 @@ func (w *Workspace) Phases() []PhaseLog {
 // host → 事实文本（按探针分段，已截断）。
 type l0Facts map[string]string
 
+// SetL0Facts stores the latest L0 security facts with a deep copy.
 // SetL0Facts 保存最近一轮 L0 安全事实（供阶段提示引用）。深拷贝：
 // 调用方后续修改 map 不污染工作区状态（P3 修复）。
 func (w *Workspace) SetL0Facts(facts map[string]string) {
@@ -88,6 +93,7 @@ func (w *Workspace) SetL0Facts(facts map[string]string) {
 	w.L0Facts = l0Facts(cp)
 }
 
+// L0FactsSnapshot returns a copy of the latest L0 security facts.
 // L0FactsSnapshot 返回最近一轮 L0 安全事实（加锁复制；报告覆盖声明用）。
 func (w *Workspace) L0FactsSnapshot() map[string]string {
 	w.mu.Lock()
@@ -99,6 +105,7 @@ func (w *Workspace) L0FactsSnapshot() map[string]string {
 	return out
 }
 
+// SetL0Coverage stores the latest fact coverage semantics for the current round.
 // SetL0Coverage 保存最近一轮事实覆盖语义（host → probeID → full/partial/
 // skipped；与 L0Facts 同轮写入）。
 func (w *Workspace) SetL0Coverage(cov map[string]map[string]string) {
@@ -107,6 +114,7 @@ func (w *Workspace) SetL0Coverage(cov map[string]map[string]string) {
 	w.L0Coverage = cov
 }
 
+// L0CoverageSnapshot returns a copy of the latest fact coverage semantics.
 // L0CoverageSnapshot 返回最近一轮事实覆盖语义（加锁复制；报告审计面）。
 func (w *Workspace) L0CoverageSnapshot() map[string]map[string]string {
 	w.mu.Lock()

@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// LoadDossier reads the host dossier brief read-only (for task-context injection; returns "" when no dossier exists).
 // LoadDossier 只读读取主机档案摘要（任务上下文注入；无档案返回空串）。
 // 与 Memory 实例的写并发安全（原子替换落盘，读可能拿到旧版本，无碍）。
 func LoadDossier(workDir, host string) string {

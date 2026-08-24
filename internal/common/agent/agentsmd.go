@@ -10,6 +10,8 @@ import (
 	"github.com/go-gocel/gocel-core/types"
 )
 
+// AgentsMDModule injects AGENTS.md (or any knowledge/info file) into the
+// agent's system prompt.
 // AgentsMDModule 把 AGENTS.md（或任意知识/信息文件）注入 agent 的系统提示。
 //
 // 设计意图（工作目录约定的信息注入面）：
@@ -30,11 +32,15 @@ type AgentsMDModule struct {
 	data string
 }
 
+// NewAgentsMDModule creates an AGENTS.md injection module; an empty path
+// makes the module idle.
 // NewAgentsMDModule 创建 AGENTS.md 注入模块。path 为空时模块空转。
 func NewAgentsMDModule(path string, vars map[string]string) *AgentsMDModule {
 	return &AgentsMDModule{Path: path, Vars: vars}
 }
 
+// Register hooks OnMessagesBuilt to inject the content after messages are
+// built and before the model is called.
 // Register 挂接 OnMessagesBuilt 钩子：在消息构建后、模型调用前注入。
 func (m *AgentsMDModule) Register(rt kernel.HookRegistrar) {
 	rt.OnMessagesBuilt(m.inject)

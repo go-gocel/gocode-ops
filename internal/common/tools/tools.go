@@ -14,6 +14,7 @@ import (
 	"github.com/go-gocel/gocel/tools/write"
 )
 
+// TerminalDefaultTimeout is the default timeout (60s) applied to gocel shell tools.
 // terminal 超时策略（注入 gocel shell 工具）：运维命令普遍比编码场景重
 // （安装/编译/迁移/大包解压），默认 60s；单次上限 10m，小时级任务走
 // task_run 后台工具族。
@@ -22,6 +23,7 @@ const (
 	TerminalMaxTimeout     = 10 * time.Minute
 )
 
+// AllTools returns the tool set for Linux operations.
 // AllTools 返回 Linux 运维领域的工具集。
 //
 // 设计原则：命令优先，工具最小化。巡检、诊断、日志、服务状态等全部

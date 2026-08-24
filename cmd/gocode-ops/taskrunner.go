@@ -98,6 +98,8 @@ type baseLogWriter struct {
 	rt *runtime.Runtime
 }
 
+// Write forwards a base-kernel log line into the TUI event loop via rt.Send, implementing io.Writer. It returns len(p), nil.
+// Write 把公用内核（l0.Engine）日志行经 rt.Send 转发进 TUI 事件循环；由底座 goroutine 调用，rt.Send 并发安全。
 func (w *baseLogWriter) Write(p []byte) (int, error) {
 	if w.rt != nil {
 		w.rt.Send(baseLogMsg{line: strings.TrimRight(string(p), "\n")})
@@ -129,6 +131,8 @@ func (o *tuiOperator) close() { o.once.Do(func() { close(o.done) }) }
 // drain 缓冲，正常负载毫秒级送达；超时仅发生在事件循环严重卡死。
 const askSendTimeout = 3 * time.Second
 
+// Ask poses a question to the operator through the TUI, blocking until the answer is returned or the TUI exits.
+// Ask 通过 TUI 完成操作员交互：向事件循环投递 askMsg 并阻塞等待回答（取消时收到空串）；返回回答或错误。
 func (o *tuiOperator) Ask(prompt string, options []string) (string, error) {
 	if o.rt == nil {
 		return "", errors.New("ask_operator: TUI 未就绪")

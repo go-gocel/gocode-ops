@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+// JudgeHardeningFacts is the entry point for attribution/threshold
+// judgment of routine compliance (等保) hardening items.
 // JudgeHardeningFacts 等保常规项的归属/阈值判定入口。
 func JudgeHardeningFacts(hm *HostMetric) []Anomaly {
 	var out []Anomaly

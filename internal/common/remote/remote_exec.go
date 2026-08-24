@@ -64,6 +64,9 @@ type remoteProgressWriter struct {
 	pending strings.Builder
 }
 
+// Write writes p into both the capped full-output buffer and the pending
+// increment buffer for progress callbacks.
+// Write 把 p 同时写入限量完整输出缓冲与待回传的进度增量缓冲。
 func (w *remoteProgressWriter) Write(p []byte) (int, error) {
 	w.total.Write(p) // cappedBuffer 内部加锁
 	w.mu.Lock()
@@ -88,12 +91,17 @@ func (w *remoteProgressWriter) output() []byte {
 	return []byte(w.total.String())
 }
 
+// Exec runs the command on all aliases in parallel (up to 8 concurrent),
+// returning per-host segmented output in input order; with a progress
+// callback, each host's output streams in real time throttled to ~50ms.
 // Exec 并行执行（并发上限 8），按输入顺序返回分段输出；注入进度回调时
 // 每台输出按 ~50ms 节流实时回传。展示路径：单台输出上限 8K。
 func (e *sshExecutor) Exec(ctx context.Context, aliases []string, command string, timeout time.Duration) (string, error) {
 	return e.execWithCap(ctx, aliases, command, timeout, perHostCap, true)
 }
 
+// ExecCollect runs the command on the collection path with the larger
+// maxCollectOut per-host cap, so tail probes are not silently truncated.
 // ExecCollect 收集路径执行：L0 快检一条命令输出可达 10K+，展示路径的
 // 8K 单台上限会把尾部探针（facts/cpu/load）截掉导致静默漏采——收集路径
 // 用 maxCollectOut 同款上限（解析后不展示，不吃模型上下文）。
