@@ -72,7 +72,7 @@ flowchart LR
 
 | 域 | 模块 | 提供的功能 |
 |---|---|---|
-| 入口 | `cmd/gocode-ops` | 命令树（TUI / init / auto）、模型构建、高危策略、两形态启动装配 |
+| 入口 | `cmd/gocode-ops` | 命令树（TUI / init / auto）、模型构建、高危策略、主题加载（`--theme` / `.gocode/theme.json`）、两形态启动装配 |
 | 形态 | `internal/assistant` | 交互形态独有：人在环装配（Operator+Policy 注入）、交互提示词、ask_operator |
 | 形态 | `internal/autopilot` | 自主形态独有：协议骨架（survey→deepdive→respond→复扫→终裁）、收敛循环、并行 worker、watch |
 | 领域 | `common/model` | 纯领域模型与消费方接口（Finding 三态 / Disposition / Operator / L0Snapshooter…） |
@@ -93,3 +93,5 @@ flowchart LR
 3. **安全机械强制**：workspace 文件边界 + 高危守卫（非提示词约束）+ 全量审计；远程凭证只存本机、模型永不可见。
 4. **处置能力公用化**：三件套契约执行/复检/工单在 `remediate`——交互形态未来可接入同一处置通道（操作员批准后自动执行修复）。
 5. **依赖单向无环**：`model ← env/probe/remote/guard/audit/memory/workbench/workspace ← collect ← l0 ← agent/tools ← {assistant, autopilot} ← cmd`。
+6. **接力协同与并行安全**：引擎遗留（未处置项/人工工单）经 `handoff` 摘要注入交互助手（横幅提示"接续处理"）；引擎运行标记（`.gocode/engine.running`）+ 工作区跨进程锁与合并，两形态可并行同一工作目录。
+7. **会话留痕**：TUI 会话（对话 + 工具摘要 + 用量）退出时自动导出 `.gocode/sessions/`（`/export` 随时手动导出），凭证脱敏、0600 仅属主可读。
