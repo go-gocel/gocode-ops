@@ -1,0 +1,21 @@
+# 构建产物
+/gocode-ops
+/gocode-ops.exe
+/test/gocode-ops
+/test/gocode-ops.exe
+
+# 工作目录配置（hosts.yaml 含凭证，严禁入库）
+.gocode/
+
+# 运行时产物
+*.log
+result.json
+test
+/test/*
+
+# 本地构建缓存与产物
+.gocache/
+.gotmp/
+dist/
+.workbuddy/*
+*.exe
