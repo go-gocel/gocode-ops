@@ -171,6 +171,11 @@ func judgeHost(hm *HostMetric, th Thresholds) []Anomaly {
 	if hm.Metrics["k8s_pod_abnormal"] != nil {
 		out = append(out, judgeTopKeys(hm, "k8s_pod_abnormal", 1, 3, 3)...)
 	}
+	// 镜像拉取失败类 Pod（k8s_imgpull）：任何该类状态即告警（Warn=Crit=1），
+	// 与 k8s_pod_abnormal 同对象级键语义；处置后复检靠该信号收敛。
+	if hm.Metrics["k8s_imgpull"] != nil {
+		out = append(out, judgeTopKeys(hm, "k8s_imgpull", 1, 1, 3)...)
+	}
 	if hm.Metrics["k8s_deploy_unready"] != nil {
 		out = append(out, judgeTopKeys(hm, "k8s_deploy_unready", 1, 3, 3)...)
 	}

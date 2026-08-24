@@ -37,6 +37,18 @@ func k8sMetrics() []Metric {
 			},
 			Parse: parseK8sPods,
 		},
+		// 镜像拉取失败类 Pod 独立归类（演练 R1 快检进化）：k8s_pod_abnormal
+		// 只报"异常 Pod"，不区分失败形态；本指标把 ImagePullBackOff/
+		// ErrImagePull 等镜像面失败直接归类为独立信号（k8s_img_pull），
+		// 快检层面即给出根因方向（镜像不存在/仓库不可达/凭据缺失/
+		// 格式错误），DeepDive 只需确认具体镜像与修复动作。对象级键
+		// ns/pod 参与处置后复检（镜像修正后 Pod 脱离该状态即收敛）。
+		{ID: "k8s_imgpull", Name: "镜像拉取失败 Pod", Warn: 1, Crit: 1,
+			Fragment: func(*Env) string {
+				return k8sProbe("kubectl get pods -A --no-headers 2>/dev/null", 20)
+			},
+			Parse: parseK8sImgPull,
+		},
 		{ID: "k8s_deploy_unready", Name: "未就绪 Deployment", Warn: 1, Crit: 3,
 			Fragment: func(*Env) string {
 				return k8sProbe("kubectl get deploy -A --no-headers 2>/dev/null", 20)
@@ -147,6 +159,38 @@ func splitReady(s string) (int, int) {
 		return -1, -1
 	}
 	return x, y
+}
+
+// k8sImgPullStatuses 镜像拉取失败类 STATUS 集合：kubectl 对拉取失败的
+// 确定性状态标记（镜像不存在/仓库不可达/凭据缺失/格式错误等全部汇聚
+// 为这几类状态，Pod 停留在该状态直到镜像问题解决）。
+var k8sImgPullStatuses = map[string]bool{
+	"ImagePullBackOff":  true,
+	"ErrImagePull":      true,
+	"ImageInspectError": true,
+	"ErrImageNeverPull": true,
+	"InvalidImageName":  true,
+}
+
+// parseK8sImgPull 解析 kubectl get pods -A --no-headers：STATUS 属
+// 镜像拉取失败类 → "ns/pod" → 1。与 parseK8sPods 共用同一探针输出，
+// 但按失败形态归类（信号 k8s_img_pull），使快检直接给出根因方向。
+// 全健康返回空 map（无数据，不产线）。
+func parseK8sImgPull(out string) (map[string]float64, error) {
+	res := map[string]float64{}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+		if k8sImgPullStatuses[fields[3]] {
+			res[fields[0]+"/"+fields[1]] = 1
+		}
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+	return res, nil
 }
 
 // k8sSecurityFacts 返回 k8s 安全事实探针（例行采集，原始数据进模型

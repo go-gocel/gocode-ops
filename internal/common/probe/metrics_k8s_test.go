@@ -93,6 +93,71 @@ worker-2   NotReady <none>           1h   v1.28.2
 	}
 }
 
+// TestParseK8sImgPull 镜像拉取失败类 Pod 独立归类：ImagePullBackOff/
+// ErrImagePull/ImageInspectError 等状态 → k8s_img_pull 信号；非镜像
+// 面异常（CrashLoopBackOff/Pending）不混入该信号（由 k8s_pod_abnormal
+// 覆盖）；健康/空输出不产线。
+func TestParseK8sImgPull(t *testing.T) {
+	out := `default nginx-7c9b5d6f8-abcde 1/1 Running 0 3h
+default err-app-6f9f7c9f9-qq999 0/1 ImagePullBackOff 2 5m
+default badimg-6f9f7c9f9-aa111 0/1 ErrImagePull 1 2m
+default badname-6f9f7c9f9-bb222 0/1 InvalidImageName 0 1m
+default crash-app-6f9f7c9f9-zz123 0/1 CrashLoopBackOff 5 12m
+default pending-app-6f9f7c9f9-pp111 0/1 Pending 0 1m
+default old-job-abc 0/1 Completed 0 2d
+`
+	got, err := parseK8sImgPull(out)
+	if err != nil {
+		t.Fatalf("parseK8sImgPull: %v", err)
+	}
+	want := map[string]float64{
+		"default/err-app-6f9f7c9f9-qq999": 1,
+		"default/badimg-6f9f7c9f9-aa111":  1,
+		"default/badname-6f9f7c9f9-bb222": 1,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+	// 健康/空输出：无数据不产线。
+	healthy := "default a 1/1 Running 0 1h\nkube-system b 1/1 Running 0 1h\n"
+	if got, err = parseK8sImgPull(healthy); err != nil || len(got) != 0 {
+		t.Errorf("健康输出应无数据，got %v err %v", got, err)
+	}
+	if got, err = parseK8sImgPull(""); err != nil || len(got) != 0 {
+		t.Errorf("空输出应无数据，got %v err %v", got, err)
+	}
+}
+
+// TestJudgeK8sImgPull 判定层：镜像拉取失败 Pod 产 k8s_img_pull 线索，
+// 空数据段跳过（补健康指标规避零可见性检查）。
+func TestJudgeK8sImgPull(t *testing.T) {
+	hm := &HostMetric{
+		Host: "k8s-master",
+		Metrics: map[string]map[string]float64{
+			"k8s_imgpull": {"default/err-app-6f9f7c9f9-qq999": 1},
+		},
+	}
+	out := Judge(&Snapshot{Hosts: []HostMetric{*hm}}, DefaultThresholds())
+	found := false
+	for _, a := range out {
+		if a.Metric == "k8s_imgpull" && a.Signal() == "k8s_img_pull" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("应产 k8s_img_pull 线索，got %+v", out)
+	}
+	// 无 k8s 数据段（非集群主机）：不产线。
+	if out := Judge(&Snapshot{Hosts: []HostMetric{{Host: "plain", Metrics: map[string]map[string]float64{"mem": {"avail_pct": 50}}}}}, DefaultThresholds()); len(out) != 0 {
+		t.Errorf("无数据应不产线，got %v", out)
+	}
+}
+
 func TestJudgeK8sFacts(t *testing.T) {
 	hm := &HostMetric{
 		Host: "k8s-master",

@@ -50,6 +50,7 @@ var signalByMetric = map[string]string{
 	// NotReady 节点（数值指标，对象级键）；敏感配置对象与明文 env 名
 	// （归属规则，名称级键）。
 	"k8s_pod_abnormal":   "k8s_pod_abnormal",
+	"k8s_imgpull":        "k8s_img_pull",
 	"k8s_deploy_unready": "k8s_deploy_unready",
 	"k8s_node_notready":  "k8s_node_notready",
 	"k8s_secrets":        "k8s_sensitive_obj",
