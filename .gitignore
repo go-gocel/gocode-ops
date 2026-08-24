@@ -4,18 +4,21 @@
 /test/gocode-ops
 /test/gocode-ops.exe
 
-# 工作目录配置（hosts.yaml 含凭证，严禁入库）
+# 工作目录配置（hosts.yaml 含凭证，严禁入库�?
 .gocode/
 
-# 运行时产物
+# 运行时产�?
 *.log
 result.json
 test
 /test/*
 
-# 本地构建缓存与产物
+# 本地构建缓存与产�?
 .gocache/
 .gotmp/
 dist/
 .workbuddy/*
 *.exe
+
+# ��������Ŀ¼����ֹ��⣩
+/tools/
