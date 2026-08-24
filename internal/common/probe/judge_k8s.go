@@ -58,6 +58,7 @@ func JudgeK8sFacts(hm *HostMetric) []Anomaly {
 		}
 	}
 	out = append(out, judgeK8sSvcBackends(hm)...)
+	out = append(out, judgeK8sPVCs(hm)...)
 	return out
 }
 
@@ -206,4 +207,48 @@ func countMatchingPods(sel map[string]string, podLabels map[string]map[string]st
 		}
 	}
 	return n
+}
+
+// judgeK8sPVCs 存储面判定（演练 R3 快检进化）：PVC 状态非 Bound →
+// 线索（存储域故障：Pod 挂载等待/ContainerCreating 的确定性根因
+// 方向）。配齐 k8s_scs 数据段时按"引用的 StorageClass 是否存在于
+// 集群"归类：SC 缺失 → 配置错误类；SC 存在仍非 Bound → 供给/配额
+// 类。数据驱动：k8s_pvcs 缺失跳过；SC 清单缺失降级通用线索。
+func judgeK8sPVCs(hm *HostMetric) []Anomaly {
+	raw := hm.rawCov("k8s_pvcs")
+	if raw == "" {
+		return nil
+	}
+	scNames := map[string]bool{}
+	if scRaw := hm.rawCov("k8s_scs"); scRaw != "" {
+		for _, line := range strings.Split(scRaw, "\n") {
+			fields := strings.Fields(line)
+			if len(fields) >= 1 && fields[0] != "" {
+				scNames[fields[0]] = true
+			}
+		}
+	}
+	var out []Anomaly
+	for _, line := range strings.Split(raw, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		ns, name, status := fields[0], fields[1], fields[2]
+		if status == "Bound" || status == "" {
+			continue
+		}
+		desc := fmt.Sprintf("k8s PVC %s/%s 未绑定（STATUS=%s）——存储域故障（Pod 将卡在 ContainerCreating）", ns, name, status)
+		// STORAGECLASS 列（fields[6]）：显式引用且集群无该 SC → 归类。
+		if len(fields) >= 7 && fields[6] != "" && len(scNames) > 0 {
+			if !scNames[fields[6]] {
+				desc = fmt.Sprintf("k8s PVC %s/%s 未绑定（STATUS=%s）且引用的 StorageClass %q 不存在——存储配置错误（SC 缺失/名称拼写错误）", ns, name, status, fields[6])
+			} else {
+				desc = fmt.Sprintf("k8s PVC %s/%s 未绑定（STATUS=%s，StorageClass %q 存在）——供给失败/配额不足/底层存储不可用", ns, name, status, fields[6])
+			}
+		}
+		out = append(out, Anomaly{Host: hm.Host, Metric: "k8s_pvcs", Key: ns + "/" + name, Severity: SevWarn,
+			Desc: desc})
+	}
+	return out
 }

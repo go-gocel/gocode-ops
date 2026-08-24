@@ -257,5 +257,16 @@ func k8sSecurityFacts() []Metric {
 			Fragment: func(*Env) string {
 				return BoundedProbe(`sh -c "command -v kubectl >/dev/null 2>&1 && kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name} {.metadata.labels}{\"\\n\"}{end}' 2>/dev/null || true"`, 20)
 			}},
+		// 存储面（演练 R3 快检进化）：PVC 状态清单 + StorageClass 清单
+		// ——判定层按"未绑定 PVC 引用的 SC 是否存在于集群"归类根因
+		// 方向（SC 缺失/供给失败/配额等）。对象级键参与处置后复检。
+		{ID: "k8s_pvcs", Name: "PVC 状态清单",
+			Fragment: func(*Env) string {
+				return k8sProbe("kubectl get pvc -A --no-headers 2>/dev/null", 20)
+			}},
+		{ID: "k8s_scs", Name: "StorageClass 清单",
+			Fragment: func(*Env) string {
+				return k8sProbe("kubectl get storageclass --no-headers 2>/dev/null", 20)
+			}},
 	}
 }

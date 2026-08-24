@@ -182,3 +182,50 @@ func TestCountMatchingPods(t *testing.T) {
 		t.Errorf("无匹配应 0，got %d", n)
 	}
 }
+
+// TestJudgeK8sPVCs 存储面判定：PVC 未绑定产线索，SC 缺失归类；
+// Bound/无数据段跳过。
+func TestJudgeK8sPVCs(t *testing.T) {
+	hm := &HostMetric{
+		Host: "web-01",
+		Raw: map[string]string{
+			"k8s_pvcs": "default   db-data   Bound   pvc-1   100Mi   RWO   local-path   <unset>   30m\n" +
+				"default   db2-data   Pending   <none>   <none>   <none>   no-such-sc   <unset>   2m\n" +
+				"default   slow-data  Pending   <none>   <none>   <none>   local-path   <unset>   2m\n",
+			"k8s_scs": "local-path   rancher.io/local-path   Delete   WaitForFirstConsumer   false   40m\n",
+		},
+	}
+	out := JudgeK8sFacts(hm)
+	if len(out) != 2 {
+		t.Fatalf("应产 2 条（两个 Pending PVC），got %d: %+v", len(out), out)
+	}
+	for _, a := range out {
+		if a.Signal() != "k8s_pvc_abnormal" {
+			t.Errorf("信号错误: %s", a.Signal())
+		}
+		switch a.Key {
+		case "default/db2-data":
+			if !strings.Contains(a.Desc, "no-such-sc") || !strings.Contains(a.Desc, "不存在") {
+				t.Errorf("SC 缺失应归类配置错误: %s", a.Desc)
+			}
+		case "default/slow-data":
+			if !strings.Contains(a.Desc, "供给失败") {
+				t.Errorf("SC 存在仍 Pending 应归类供给类: %s", a.Desc)
+			}
+		default:
+			t.Errorf("意外对象键 %s", a.Key)
+		}
+	}
+	// SC 清单缺失：降级通用线索（不吞判定）。
+	hm2 := &HostMetric{Host: "web-01", Raw: map[string]string{
+		"k8s_pvcs": "default   db2-data   Pending   <none>   <none>   <none>   no-such-sc   <unset>   2m\n",
+	}}
+	out = JudgeK8sFacts(hm2)
+	if len(out) != 1 || !strings.Contains(out[0].Desc, "未绑定") {
+		t.Fatalf("SC 缺失应降级通用线索，got %+v", out)
+	}
+	// 无数据段跳过。
+	if out := JudgeK8sFacts(&HostMetric{Host: "h"}); len(out) != 0 {
+		t.Fatalf("无数据应跳过，got %+v", out)
+	}
+}

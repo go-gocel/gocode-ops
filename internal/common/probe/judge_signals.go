@@ -61,6 +61,9 @@ var signalByMetric = map[string]string{
 	// 判定层仍按旧数据归类。
 	"k8s_svc_selectors": "k8s_svc_no_backend",
 	"k8s_pod_labels":    "k8s_svc_no_backend",
+	// 存储面（R3 快检进化）：PVC 未绑定 + SC 存在性归类，复检一并重采。
+	"k8s_pvcs": "k8s_pvc_abnormal",
+	"k8s_scs":  "k8s_pvc_abnormal",
 	// LVM 面（metrics_lvm.go）：逻辑卷使用率。
 	"lvm_lv_full": "lvm_lv_full",
 	// 等保加固面（metrics_hardening.go）：密码策略（login.defs/
