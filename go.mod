@@ -3,12 +3,14 @@ module github.com/go-gocel/gocode-ops
 go 1.26.3
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/ansi v0.11.7
-	github.com/go-gocel/gocel v0.0.0
-	github.com/go-gocel/gocel-core v0.6.0
-	github.com/go-gocel/termagent v0.0.0
+	github.com/go-gocel/gocel v0.1.0
+	github.com/go-gocel/gocel-core v1.0.0
+	github.com/go-gocel/termagent v0.1.0
+	github.com/mattn/go-isatty v0.0.20
 	github.com/pkg/sftp v1.13.11
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.54.0
@@ -20,7 +22,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/bubbles v1.0.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
@@ -43,7 +44,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
@@ -61,10 +61,4 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-)
-
-replace (
-	github.com/go-gocel/gocel => ../gocel
-	github.com/go-gocel/gocel-core => ../gocel-core
-	github.com/go-gocel/termagent => ../TermAgent
 )
