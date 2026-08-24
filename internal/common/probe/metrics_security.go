@@ -375,6 +375,14 @@ func securityFacts(env *Env) []Metric {
 			Fragment: func(*Env) string {
 				return "systemctl list-units --type=service --state=running --no-legend 2>/dev/null | awk '{print $1}'"
 			}})
+		// 启用服务单元（list-unit-files）：站点健康判定（site_down）的
+		// 门控依据（演练 R5 快检进化）——必须用"启用/安装"而非"运行中"
+		// 清单：服务故障（nginx 起不来）时运行中清单不含该单元，用运行
+		// 态门控会吞掉最该报的线索（R5 实测踩坑）。
+		list = append(list, Metric{ID: "enabled_units", Name: "启用服务单元",
+			Fragment: func(*Env) string {
+				return "systemctl list-unit-files --state=enabled --type=service --no-legend 2>/dev/null | awk '{print $1}'"
+			}})
 	}
 	// Kubernetes 面（目标主机 kubectl 可用时自动产出数据）：对象级状态/
 	// 配额/敏感配置（名称级，值不进引擎），见 metrics_k8s.go。

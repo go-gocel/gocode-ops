@@ -84,6 +84,11 @@ var signalByMetric = map[string]string{
 	// 目标零可见性（采集完整性）：指标/状态/事实全空且无采集错误——
 	// 管理通道异常（口令过期/账户锁定/无 shell）的判定层信号。
 	"collect_visibility": "target_no_data",
+	// Web 服务健康面（R5 快检进化）：站点不可达/非 2xx；enabled_units
+	// 为判定门控依据（服务故障时运行清单不含该单元，须用启用清单），
+	// 复检一并重采。
+	"http_health":   "site_down",
+	"enabled_units": "site_down",
 }
 
 // SignalNames returns the stable signal table, referenced by protocol

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 )
 
 // Anomaly is a single anomaly judgment result.
@@ -156,6 +157,21 @@ func judgeHost(hm *HostMetric, th Thresholds) []Anomaly {
 	if hm.Metrics["file_desc"] != nil {
 		out = append(out, judgeMap(hm, "file_desc", "fd_pct", th.FDWarn, th.FDCrit, false)...)
 	}
+	// Web 服务健康面（演练 R5 快检进化）：http_health 探测非 2xx/不可达
+	// 且主机存在 Web 服务单元（nginx/httpd/caddy 等）→ 线索。数据驱动：
+	// 无 Web 服务单元的主机不产线；健康站点无数据段。
+	if hm.Metrics["http_health"] != nil && webServiceActive(hm) {
+		if vals := hm.Metrics["http_health"]; vals != nil {
+			if code, ok := vals["code"]; ok {
+				out = append(out, Anomaly{Host: hm.Host, Metric: "http_health", Key: "code", Value: code, Severity: SevWarn,
+					Desc: fmt.Sprintf("站点健康检查失败（HTTP %.0f）——Web 服务响应异常（应用层故障/配置错误）", code)})
+			}
+			if _, none := vals["none"]; none {
+				out = append(out, Anomaly{Host: hm.Host, Metric: "http_health", Key: "none", Severity: SevWarn,
+					Desc: "站点不可达（连接失败/无响应）——Web 服务故障（配置损坏/进程崩溃/监听丢失）"})
+			}
+		}
+	}
 	// Security 兜底探针（仅 Security 阶段失败时采集，常规 L0 无此数据）。
 	if hm.Metrics["suid_files"] != nil {
 		out = append(out, judgeMap(hm, "suid_files", "count", float64(th.SuidWarn), float64(th.SuidCrit), false)...)
@@ -209,6 +225,27 @@ func judgeHost(hm *HostMetric, th Thresholds) []Anomaly {
 		})
 	}
 	return out
+}
+
+// webServiceActive 数据驱动门控（演练 R5 快检进化）：enabled_units
+// 含 Web 服务单元（nginx/httpd/apache2/caddy）→ 本机有站点面，站点
+// 健康判定生效；无 Web 服务的主机不产线（80 端口 NONE 属常态）。
+// 门控依据用"启用单元"而非"运行中单元"：服务故障（配置坏起不来）
+// 时运行清单不含该单元，用运行态门控会吞掉最该报的线索（R5 实测）。
+func webServiceActive(hm *HostMetric) bool {
+	raw := hm.rawCov("enabled_units")
+	if raw == "" {
+		return false
+	}
+	for _, line := range strings.Split(raw, "\n") {
+		u := strings.TrimSpace(line)
+		for _, w := range []string{"nginx", "httpd", "apache2", "caddy"} {
+			if strings.HasPrefix(u, w) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ── 安全事实归属判定（机制 1 线索层）────────────────────────────────

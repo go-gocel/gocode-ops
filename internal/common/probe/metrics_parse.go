@@ -249,3 +249,23 @@ func parseFileNR(out string) (map[string]float64, error) {
 	}
 	return map[string]float64{"fd_pct": (alloc - unused) / max * 100}, nil
 }
+
+// parseHTTPHealth 解析站点健康探测输出（演练 R5 快检进化）：
+//   2xx/3xx → 空（健康，不产线）；
+//   4xx/5xx → {"code": <状态码>}（站点响应异常）；
+//   NONE/空（连接失败/无响应/无服务）→ {"none": 1}（站点不可达，
+//   判定层按 Web 服务单元门控，无 Web 服务的主机不产线）。
+func parseHTTPHealth(out string) (map[string]float64, error) {
+	code := strings.TrimSpace(out)
+	if code == "" || code == "NONE" {
+		return map[string]float64{"none": 1}, nil
+	}
+	n, err := strconv.Atoi(code)
+	if err != nil {
+		return nil, nil // 异常输出（非状态码）：无数据，不臆断
+	}
+	if n >= 200 && n < 400 {
+		return nil, nil
+	}
+	return map[string]float64{"code": float64(n)}, nil
+}

@@ -172,6 +172,17 @@ func Metrics(env *Env) []Metric {
 			Fragment: func(*Env) string { return "cat /proc/sys/fs/file-nr" },
 			Parse:    parseFileNR,
 		},
+		// Web 服务健康面（演练 R5 快检进化）：本机 80 端口 HTTP 探测——
+		// 站点故障（配置损坏/进程崩溃/监听丢失）的确定性落点。判定层
+		// 数据驱动：仅当主机存在 Web 服务单元（nginx/httpd/caddy 等）
+		// 时才产线；无 Web 服务的主机（NONE）不产线、健康站点（2xx/3xx）
+		// 无数据。curl 不可用/超时由 timeout 护栏 + NONE 兜底。
+		{ID: "http_health", Name: "站点健康检查(80)", Warn: 1, Crit: 1,
+			Fragment: func(*Env) string {
+				return BoundedProbe(`sh -c 'code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:80/ 2>/dev/null); if [ -n "$code" ]; then echo "$code"; else echo NONE; fi'`, 10)
+			},
+			Parse: parseHTTPHealth,
+		},
 	}
 	if env.HasSystemd {
 		list = append(list, Metric{ID: "svc_failed", Name: "失败服务数", Warn: 1, Crit: 3,

@@ -17,6 +17,7 @@ package autopilot
 import (
 	"context"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -134,7 +135,63 @@ func (e *Engine) rechecker() *remediate.Rechecker {
 // NewEngine 创建全自动运维引擎。llm 可为 nil：只跑 L0（调试）。
 // remote 可为 nil：仅本机。
 func NewEngine(cfg Config, llm kernel.Model, remote remote.RemoteExecutor) (*Engine, error) {
-	return newEngine(cfg, llm, remote, env.DetectEnv(context.Background()))
+	e := env.DetectEnv(context.Background())
+	mergeRemoteEnv(e, cfg, remote)
+	return newEngine(cfg, llm, remote, e)
+}
+
+// mergeRemoteEnv 把远端系统面能力合并进本机环境（机制层修复，演练
+// R5）：L0 快检的探针清单按环境裁剪（HasSystemd/HasDocker/HasSS），
+// Windows 本机恒无 systemd——直接用本机环境会让远端 Linux 目标缺失
+// 全部 systemd 探针（svc_failed/svc_inactive/log_errors/svc_units/
+// enabled_units 等），站点健康门控因此静默失效（R5 实测 site_down
+// 快检不产线）。远端确定性只读探测补齐：OR 语义只增强不降级，探测
+// 失败静默降级（不虚报能力）。
+func mergeRemoteEnv(e *env.Env, cfg Config, remote remote.RemoteExecutor) {
+	if remote == nil || len(cfg.EngineConfig.Hosts) == 0 {
+		return
+	}
+	if re := detectRemoteEnv(context.Background(), remote, cfg.EngineConfig.Hosts); re != nil {
+		e.HasSystemd = e.HasSystemd || re.HasSystemd
+		e.HasDocker = e.HasDocker || re.HasDocker
+		e.HasSS = e.HasSS || re.HasSS
+	}
+}
+
+// remoteEnvProbe 远端系统面确定性只读探测命令：systemd 运行目录/docker、
+// ss 二进制存在性。命令固定、只读、带 timeout 护栏，失败静默降级
+// （与 env.DetectEnv 同级确定性验证豁免——不产错误、不阻塞启动）。
+const remoteEnvProbe = "test -d /run/systemd/system && echo SYSTEMD=1; command -v docker >/dev/null 2>&1 && echo DOCKER=1; command -v ss >/dev/null 2>&1 && echo SS=1; true"
+
+// remoteEnvProbeTimeout 远端环境探测超时：连不上/挂死时快速放弃
+// （快检清单裁剪不完整时由缺失降级兜底，不得拖慢启动）。
+const remoteEnvProbeTimeout = 10 * time.Second
+
+// detectRemoteEnv 在远端目标上执行确定性只读探测，返回目标侧系统面
+// 能力。多目标取首个成功结果（同构组假定：探测失败的目标按缺失降级，
+// 不因单台失败丢弃整体能力）。全部失败返回 nil（调用方不补齐）。
+func detectRemoteEnv(ctx context.Context, remote remote.RemoteExecutor, hosts []string) *env.Env {
+	rctx, cancel := context.WithTimeout(ctx, remoteEnvProbeTimeout)
+	defer cancel()
+	out, err := remote.Exec(rctx, hosts, remoteEnvProbe, remoteEnvProbeTimeout)
+	if err != nil && strings.TrimSpace(out) == "" {
+		return nil
+	}
+	e := &env.Env{}
+	for _, line := range strings.Split(out, "\n") {
+		switch strings.TrimSpace(line) {
+		case "SYSTEMD=1":
+			e.HasSystemd = true
+		case "DOCKER=1":
+			e.HasDocker = true
+		case "SS=1":
+			e.HasSS = true
+		}
+	}
+	if !e.HasSystemd && !e.HasDocker && !e.HasSS {
+		return nil // 无任何能力信号：视为探测失败，不补齐
+	}
+	return e
 }
 
 // newEngine 内部构造（测试注入确定性环境探测结果）。
