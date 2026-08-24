@@ -1,6 +1,9 @@
 package probe
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // 服务面判定测试：Service 无后端端点 → 线索（pod 全 Running 时
 // 工作负载探针看不到的服务面故障）。
@@ -67,5 +70,115 @@ func TestJudgeK8sSvcBackends_HeadlessSkipped(t *testing.T) {
 	}
 	if out := JudgeK8sFacts(hm); len(out) != 0 {
 		t.Fatalf("Headless 无端点应跳过，got %+v", out)
+	}
+}
+
+// TestJudgeK8sSvcBackends_ClassifyDrift 服务面形态归类：selector 漂移
+// （存在标签匹配 Pod 但端点为空）与无匹配后端两类根因方向。
+func TestJudgeK8sSvcBackends_ClassifyDrift(t *testing.T) {
+	hm := &HostMetric{
+		Host: "web-01",
+		Raw: map[string]string{
+			"k8s_svcs": "default      web-svc      ClusterIP   10.96.0.10   80/TCP    12h\n" +
+				"default      app-svc      ClusterIP   10.96.0.11   8080/TCP   8m\n",
+			"k8s_endpoints": "default      web-svc      10.244.1.5:80    12h\n" +
+				"default      app-svc      <none>           8m\n",
+			"k8s_svc_selectors": "default/web-svc {\"app\":\"webapp\"}\n" +
+				"default/app-svc {\"app\":\"webapp-drift\"}\n",
+			"k8s_pod_labels": "default/webapp-abc {\"app\":\"webapp\"}\n" +
+				"default/webapp-def {\"app\":\"webapp\"}\n" +
+				"default/other-x {\"app\":\"other\"}\n",
+		},
+	}
+	out := JudgeK8sFacts(hm)
+	if len(out) != 1 {
+		t.Fatalf("应产 1 条（app-svc 无后端且 selector 漂移），got %d: %+v", len(out), out)
+	}
+	a := out[0]
+	if a.Signal() != "k8s_svc_no_backend" || a.Key != "default/app-svc" {
+		t.Errorf("信号/对象键错误: %s/%s", a.Signal(), a.Key)
+	}
+	// selector app=webapp-drift 无匹配 Pod → 归类"无匹配后端"。
+	if !strings.Contains(a.Desc, "无匹配 Pod") {
+		t.Errorf("应归类为无匹配后端，desc=%s", a.Desc)
+	}
+	// 对照组：web-svc 有端点不产线；app-svc 归类准确。
+	// 漂移形态：selector 匹配 Pod 但端点为空。
+	hm.Raw["k8s_svc_selectors"] = "default/app-svc {\"app\":\"webapp\"}\n"
+	out = JudgeK8sFacts(hm)
+	if len(out) != 1 || !strings.Contains(out[0].Desc, "selector 漂移") {
+		t.Errorf("应归类为 selector 漂移，got %+v", out)
+	}
+}
+
+// TestJudgeK8sSvcBackends_ClassifyDegrade 形态数据缺失时降级通用线索
+// （不臆断、不吞既有判定）。
+func TestJudgeK8sSvcBackends_ClassifyDegrade(t *testing.T) {
+	hm := &HostMetric{
+		Host: "web-01",
+		Raw: map[string]string{
+			"k8s_svcs":      "default      app-svc      ClusterIP   10.96.0.11   8080/TCP   8m\n",
+			"k8s_endpoints": "default      app-svc      <none>           8m\n",
+			// 无 k8s_svc_selectors/k8s_pod_labels 数据段：降级通用线索。
+		},
+	}
+	out := JudgeK8sFacts(hm)
+	if len(out) != 1 || out[0].Signal() != "k8s_svc_no_backend" {
+		t.Fatalf("应降级产通用线索，got %+v", out)
+	}
+	// 数据段为异常格式（非标签形态）→ 整段不可信，同样降级。
+	hm.Raw["k8s_svc_selectors"] = "default/app-svc garbage\n"
+	if out := JudgeK8sFacts(hm); len(out) != 1 || !strings.Contains(out[0].Desc, "无后端端点") {
+		t.Fatalf("异常格式应降级通用线索，got %+v", out)
+	}
+}
+
+// TestParseK8sSelectorList 标签/选择器形态解析：JSON 对象（现代
+// kubectl）、Go map 形态（旧版）、空选择器、异常格式降级。
+func TestParseK8sSelectorList(t *testing.T) {
+	// JSON 形态（现代 kubectl 实测输出）。
+	got := parseK8sSelectorList("default/web-svc {\"app\":\"webapp\"}\ndefault/no-sel \n")
+	if len(got) != 2 {
+		t.Fatalf("len=%d, got %v", len(got), got)
+	}
+	if got["default/web-svc"]["app"] != "webapp" {
+		t.Errorf("selector 解析错误: %v", got["default/web-svc"])
+	}
+	if len(got["default/no-sel"]) != 0 {
+		t.Errorf("空 selector 应为空表: %v", got["default/no-sel"])
+	}
+	// Go map 形态（旧版 kubectl）。
+	got = parseK8sSelectorList("default/web-svc map[app:webapp]\ndefault/no-sel map[]\n")
+	if len(got) != 2 || got["default/web-svc"]["app"] != "webapp" {
+		t.Errorf("Go map 形态解析错误: %v", got)
+	}
+	// 多键 JSON 形态。
+	got = parseK8sSelectorList("a/x {\"app\":\"webapp\",\"tier\":\"front\"}\n")
+	if len(got) != 1 || got["a/x"]["app"] != "webapp" || got["a/x"]["tier"] != "front" {
+		t.Errorf("多键解析错误: %v", got)
+	}
+	if parseK8sSelectorList("") != nil {
+		t.Error("空数据段应返回 nil（降级）")
+	}
+	if parseK8sSelectorList("default/bad no-map-format\n") != nil {
+		t.Error("异常格式应返回 nil（降级）")
+	}
+}
+
+// TestCountMatchingPods selector 等值匹配语义：全部键值命中才计数。
+func TestCountMatchingPods(t *testing.T) {
+	labels := map[string]map[string]string{
+		"a": {"app": "webapp", "tier": "front"},
+		"b": {"app": "webapp"},
+		"c": {"app": "other"},
+	}
+	if n := countMatchingPods(map[string]string{"app": "webapp"}, labels); n != 2 {
+		t.Errorf("app=webapp 应匹配 2 个，got %d", n)
+	}
+	if n := countMatchingPods(map[string]string{"app": "webapp", "tier": "front"}, labels); n != 1 {
+		t.Errorf("双键应匹配 1 个，got %d", n)
+	}
+	if n := countMatchingPods(map[string]string{"app": "none"}, labels); n != 0 {
+		t.Errorf("无匹配应 0，got %d", n)
 	}
 }

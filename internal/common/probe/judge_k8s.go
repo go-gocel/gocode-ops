@@ -6,6 +6,7 @@ package probe
 // 核查。数据驱动：目标无 kubectl/非集群主机无数据段即跳过（不产线）。
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -66,6 +67,12 @@ func JudgeK8sFacts(hm *HostMetric) []Anomaly {
 // k8s_endpoints 同名（ns/name）；任一数据缺失则跳过（数据驱动）。
 // 排除：ExternalName（无集群端点语义）、Headless（无 ClusterIP，
 // 端点按需解析）、kube-system/kubernetes 默认服务。
+//
+// 故障形态归类（演练 R2 快检进化，机制层）：配齐 k8s_svc_selectors
+// 与 k8s_pod_labels 数据段时，按 selector 与 Pod 标签匹配情况区分
+// 两类根因方向——"selector 漂移（有匹配 Pod 但端点为空）"与
+// "无匹配后端（selector 指向的标签没有对应 Pod）"；数据段缺失时
+// 回退通用线索（不臆断，DeepDive 下钻归类）。
 func judgeK8sSvcBackends(hm *HostMetric) []Anomaly {
 	svcRaw := hm.rawCov("k8s_svcs")
 	epRaw := hm.rawCov("k8s_endpoints")
@@ -82,6 +89,11 @@ func judgeK8sSvcBackends(hm *HostMetric) []Anomaly {
 		key := fields[0] + "/" + fields[1]
 		eps[key] = fields[2]
 	}
+	// 形态归类数据（可选段）：svc selector 与 pod 标签（ns/name →
+	// 标签表），缺失时降级通用线索。
+	selectors := parseK8sSelectorList(hm.rawCov("k8s_svc_selectors"))
+	podLabels := parseK8sSelectorList(hm.rawCov("k8s_pod_labels"))
+	classify := selectors != nil && podLabels != nil
 	var out []Anomaly
 	for _, line := range strings.Split(svcRaw, "\n") {
 		fields := strings.Fields(line)
@@ -101,9 +113,97 @@ func judgeK8sSvcBackends(hm *HostMetric) []Anomaly {
 			continue // 无同名 endpoints 记录：数据面缺失，跳过（不臆断）
 		}
 		if ep == "<none>" || ep == "" || strings.HasPrefix(ep, "None") {
+			desc := fmt.Sprintf("k8s Service %s/%s 无后端端点（endpoints=<none>）——服务不可用（selector 不匹配/label 漂移/后端被摘除）", ns, name)
+			if classify {
+				if sel, hasSel := selectors[ns+"/"+name]; hasSel && len(sel) > 0 {
+					if n := countMatchingPods(sel, podLabels); n > 0 {
+						desc = fmt.Sprintf("k8s Service %s/%s 无后端端点但存在 %d 个标签匹配的 Pod——selector 漂移/端点控制器异常（服务面故障，非后端缺失）", ns, name, n)
+					} else {
+						desc = fmt.Sprintf("k8s Service %s/%s 无后端端点且 selector 无匹配 Pod（%v）——后端缺失/label 不一致（服务面故障）", ns, name, sel)
+					}
+				}
+			}
 			out = append(out, Anomaly{Host: hm.Host, Metric: "k8s_svcs", Key: ns + "/" + name, Severity: SevWarn,
-				Desc: fmt.Sprintf("k8s Service %s/%s 无后端端点（endpoints=<none>）——服务不可用（selector 不匹配/label 漂移/后端被摘除）", ns, name)})
+				Desc: desc})
 		}
 	}
 	return out
+}
+
+// parseK8sSelectorList 解析 kubectl jsonpath 输出的标签/选择器清单行：
+// "ns/name <标签形态>"（现代 kubectl 为 JSON 对象 {"k":"v"}，旧版为
+// Go map 形态 map[k:v]；空选择器输出空串）。返回 ns/name → 键值表；
+// 数据段缺失/任一行异常格式返回 nil（调用方降级，不臆断）。
+func parseK8sSelectorList(raw string) map[string]map[string]string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	out := map[string]map[string]string{}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		obj, val, ok := strings.Cut(line, " ")
+		if !ok {
+			// 无选择器/标签的行（空选择器 jsonpath 输出 "obj"）：空表。
+			obj, val = line, ""
+		}
+		if obj == "" {
+			return nil
+		}
+		lbls, ok := parseK8sLabelMap(strings.TrimSpace(val))
+		if !ok {
+			return nil
+		}
+		out[obj] = lbls
+	}
+	return out
+}
+
+// parseK8sLabelMap 解析单个标签/选择器值：JSON 对象形态（{"k":"v"}）、
+// Go map 形态（map[k:v]）、空（空串/map[] → 空表）。
+func parseK8sLabelMap(s string) (map[string]string, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "map[]" {
+		return map[string]string{}, true
+	}
+	if strings.HasPrefix(s, "{") {
+		var m map[string]string
+		if err := json.Unmarshal([]byte(s), &m); err != nil {
+			return nil, false
+		}
+		return m, true
+	}
+	if strings.HasPrefix(s, "map[") {
+		m := map[string]string{}
+		for _, kv := range strings.Fields(strings.TrimSuffix(strings.TrimPrefix(s, "map["), "]")) {
+			k, v, ok := strings.Cut(kv, ":")
+			if !ok {
+				return nil, false
+			}
+			m[k] = v
+		}
+		return m, true
+	}
+	return nil, false
+}
+
+// countMatchingPods 统计标签满足 selector 全部键值对的 Pod 数
+// （K8s selector 语义：等值匹配，全部键值须命中）。
+func countMatchingPods(sel map[string]string, podLabels map[string]map[string]string) int {
+	n := 0
+	for _, labels := range podLabels {
+		matched := true
+		for k, v := range sel {
+			if labels[k] != v {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			n++
+		}
+	}
+	return n
 }

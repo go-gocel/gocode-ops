@@ -57,6 +57,10 @@ var signalByMetric = map[string]string{
 	"k8s_deploy_env":     "k8s_deploy_env_sensitive",
 	"k8s_svcs":           "k8s_svc_no_backend",
 	"k8s_endpoints":      "k8s_svc_no_backend",
+	// 服务面形态归类数据段（R2 快检进化）：复检须一并重采，否则处置后
+	// 判定层仍按旧数据归类。
+	"k8s_svc_selectors": "k8s_svc_no_backend",
+	"k8s_pod_labels":    "k8s_svc_no_backend",
 	// LVM 面（metrics_lvm.go）：逻辑卷使用率。
 	"lvm_lv_full": "lvm_lv_full",
 	// 等保加固面（metrics_hardening.go）：密码策略（login.defs/

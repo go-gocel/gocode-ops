@@ -244,5 +244,18 @@ func k8sSecurityFacts() []Metric {
 			Fragment: func(*Env) string {
 				return k8sProbe("kubectl get endpoints -A --no-headers 2>/dev/null", 20)
 			}},
+		// 服务面故障形态归类数据（演练 R2 快检进化）：Service selector
+		// 与 Pod 标签逐对象采集——服务无后端时判定层据此区分"selector
+		// 漂移（存在标签匹配的 Pod 但端点为空）"与"无匹配后端（selector
+		// 指向的标签没有对应 Pod）"两类根因方向。jsonpath 含引号，套用
+		// BoundedProbe 双引号包裹（与 k8s_deploy_env 同形态）。
+		{ID: "k8s_svc_selectors", Name: "Service selector 清单",
+			Fragment: func(*Env) string {
+				return BoundedProbe(`sh -c "command -v kubectl >/dev/null 2>&1 && kubectl get svc -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name} {.spec.selector}{\"\\n\"}{end}' 2>/dev/null || true"`, 20)
+			}},
+		{ID: "k8s_pod_labels", Name: "Pod 标签清单",
+			Fragment: func(*Env) string {
+				return BoundedProbe(`sh -c "command -v kubectl >/dev/null 2>&1 && kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name} {.metadata.labels}{\"\\n\"}{end}' 2>/dev/null || true"`, 20)
+			}},
 	}
 }
