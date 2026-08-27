@@ -1,3 +1,5 @@
+> **⚠️ 本仓库已归档（archived）** — 项目已更名为 **gocel-ops**，代码迁移至新仓库：
+> **[go-gocel/gocel-ops](https://github.com/go-gocel/gocel-ops)**。请前往新仓库获取最新代码与后续更新。
 # gocode-ops
 
 面向 Linux 运维/实施/部署场景的 AI 助手 CLI——**一个产品、两种形态、一个公用内核**：
